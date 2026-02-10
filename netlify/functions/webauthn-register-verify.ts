@@ -76,18 +76,26 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
       return buildResponse(400, { error: 'Passkey verification failed.' });
     }
 
-    const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
-    if (!credentialID || !credentialPublicKey) {
-      const infoKeys = Object.keys(verification.registrationInfo ?? {});
+    const toBase64Url = (value: ArrayBuffer | Buffer | Uint8Array | string | undefined) => {
+      if (!value) return null;
+      if (typeof value === 'string') return value;
+      return Buffer.from(value as ArrayBuffer).toString('base64url');
+    };
+
+    const registrationInfo = verification.registrationInfo;
+    const credential = (registrationInfo as { credential?: { id?: ArrayBuffer | Buffer | Uint8Array | string; publicKey?: ArrayBuffer | Buffer | Uint8Array | string; counter?: number } })?.credential;
+    const credentialId = toBase64Url(credential?.id) ?? toBase64Url((registrationInfo as { credentialID?: ArrayBuffer | Buffer | Uint8Array | string }).credentialID);
+    const publicKey = toBase64Url(credential?.publicKey) ?? toBase64Url((registrationInfo as { credentialPublicKey?: ArrayBuffer | Buffer | Uint8Array | string }).credentialPublicKey);
+    const counter = credential?.counter ?? (registrationInfo as { counter?: number }).counter ?? 0;
+
+    if (!credentialId || !publicKey) {
+      const infoKeys = Object.keys(registrationInfo ?? {});
       console.warn('Missing credential data', { verified: verification.verified, infoKeys });
       return buildResponse(400, {
         error: 'Passkey registration missing credential data.',
         infoKeys,
       });
     }
-
-    const credentialId = Buffer.from(credentialID).toString('base64url');
-    const publicKey = Buffer.from(credentialPublicKey).toString('base64url');
 
     const insertRes = await supabaseFetch('/rest/v1/webauthn_credentials', {
       method: 'POST',
