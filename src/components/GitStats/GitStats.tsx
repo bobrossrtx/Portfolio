@@ -107,10 +107,6 @@ const GitStats = () => {
     return labels.map((label, index) => ({ label, total: totals[index] }));
   }, [calendarDays]);
 
-  const maxWeekday = useMemo(() => {
-    return weekdayTotals.reduce((max, item) => Math.max(max, item.total), 0);
-  }, [weekdayTotals]);
-
   const weekdayDistribution = useMemo(() => {
     const total = weekdayTotals.reduce((sum, item) => sum + item.total, 0);
     return weekdayTotals.map(item => ({

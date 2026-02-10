@@ -314,7 +314,7 @@ export const fetchGitHubStats = async (login: string, token: string | undefined)
     const languages = buildLanguages(repos);
     const recentActivity = buildRecentCommits(user.recentRepos.nodes);
     const pinnedRepos = user.pinnedItems.nodes
-        .filter(Boolean)
+        .filter((repo): repo is NonNullable<typeof repo> => Boolean(repo))
         .map(repo => ({
             name: repo.name,
             url: repo.url,
