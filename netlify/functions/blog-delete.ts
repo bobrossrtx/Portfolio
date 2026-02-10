@@ -41,23 +41,24 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     return buildResponse(400, { error: 'Post id is required.' });
   }
 
+  // Always try DB first
+  const response = await supabaseFetch(`/rest/v1/blog_posts?id=eq.${payload.id}`, {
+    method: 'DELETE',
+  });
+
+  if (response.ok) {
+    return buildResponse(200, { success: true });
+  }
+
+  // fallback to local only in dev
   if (process.env.NODE_ENV !== 'production') {
     try {
       await deleteLocalPost(payload.id);
     } catch (error) {
       return buildResponse(500, { error: error instanceof Error ? error.message : 'Unable to delete post.' });
     }
-    return buildResponse(200, { success: true });
+    return buildResponse(200, { success: true, fallback: true });
   }
-
-  const response = await supabaseFetch(`/rest/v1/blog_posts?id=eq.${payload.id}`, {
-    method: 'DELETE',
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    return buildResponse(500, { error: error || 'Unable to delete post.' });
-  }
-
-  return buildResponse(200, { success: true });
+  const error = await response.text();
+  return buildResponse(500, { error: error || 'Unable to delete post.' });
 };

@@ -57,21 +57,7 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
   const slug = payload.slug?.trim() || slugify(payload.title);
   const excerpt = payload.excerpt?.trim() || payload.content.slice(0, 160);
 
-  if (process.env.NODE_ENV !== 'production') {
-    const result = await writeLocalPost({
-      title: payload.title.trim(),
-      slug,
-      content: payload.content,
-      excerpt,
-      tags: payload.tags ?? [],
-      author: payload.author?.trim() || user.email,
-      readTime: payload.readTime?.trim() || undefined,
-      pinned: payload.pinned ?? false,
-      publishedAt: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
-    }, payload.id);
-    return buildResponse(200, { success: true, slug: result.slug });
-  }
-
+  // Always try DB first
   const response = await supabaseFetch(`/rest/v1/blog_posts?id=eq.${payload.id}`, {
     method: 'PATCH',
     body: JSON.stringify({
@@ -88,10 +74,25 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     }),
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    return buildResponse(500, { error: error || 'Unable to update post.' });
+  if (response.ok) {
+    return buildResponse(200, { success: true, slug });
   }
 
-  return buildResponse(200, { success: true, slug });
+  // fallback to local only in dev
+  if (process.env.NODE_ENV !== 'production') {
+    const result = await writeLocalPost({
+      title: payload.title.trim(),
+      slug,
+      content: payload.content,
+      excerpt,
+      tags: payload.tags ?? [],
+      author: payload.author?.trim() || user.email,
+      readTime: payload.readTime?.trim() || undefined,
+      pinned: payload.pinned ?? false,
+      publishedAt: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
+    }, payload.id);
+    return buildResponse(200, { success: true, slug: result.slug, fallback: true });
+  }
+  const error = await response.text();
+  return buildResponse(500, { error: error || 'Unable to update post.' });
 };
