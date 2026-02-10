@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import ErrorBoundary from './components/ErrorBoundary';
 import { MusicProvider } from './components/Music/MusicProvider';
 import MiniPlayer from './components/Music/MiniPlayer';
+import SkipToBottom from './components/SkipToBottom';
 import Home from './pages/Home';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
@@ -108,6 +109,7 @@ function App() {
           </main>
           <Footer />
           <MiniPlayer />
+          <SkipToBottom />
         </div>
       </MusicProvider>
     </BrowserRouter>

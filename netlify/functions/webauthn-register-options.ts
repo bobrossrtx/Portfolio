@@ -56,7 +56,7 @@ export const handler = async (event: { headers?: Record<string, string> }) => {
       requireResidentKey: false,
     },
     excludeCredentials: credentials.map(cred => ({
-      id: Buffer.from(cred.credential_id, 'base64url'),
+      id: cred.credential_id,
       type: 'public-key',
     })),
   });
