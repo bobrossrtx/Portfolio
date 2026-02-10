@@ -26,9 +26,14 @@ const Footer = () => {
 
         <div className="site-footer__cta">
           <p>Let’s build something sharp.</p>
-          <Link className="site-footer__button" to={{ pathname: '/', hash: '#contact' }}>
-            Say hello
-          </Link>
+          <div className="site-footer__cta-actions">
+            <Link className="site-footer__button" to={{ pathname: '/', hash: '#contact' }}>
+              Say hello
+            </Link>
+            <Link className="site-footer__button site-footer__button--ghost" to="/admin">
+              Admin login
+            </Link>
+          </div>
         </div>
       </div>
 

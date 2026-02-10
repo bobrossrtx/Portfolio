@@ -30,7 +30,11 @@ export const getNetlifyUser = async (authorization: string | undefined) => {
 };
 
 export const assertAdminEmail = (email: string | undefined) => {
-  const allowed = process.env.ADMIN_NETLIFY_EMAIL?.toLowerCase();
+  const allowed = process.env.ADMIN_NETLIFY_EMAIL;
   if (!allowed || !email) return false;
-  return email.toLowerCase() === allowed;
+  const allowList = allowed
+    .split(',')
+    .map(entry => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return allowList.includes(email.toLowerCase());
 };

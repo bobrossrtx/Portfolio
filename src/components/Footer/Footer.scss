@@ -81,6 +81,16 @@
   text-decoration: none;
 }
 
+.site-footer__cta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.site-footer__button--ghost {
+  background: transparent;
+}
+
 .site-footer__button:hover,
 .site-footer__button:focus-visible {
   border-color: var(--primary);

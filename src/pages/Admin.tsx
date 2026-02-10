@@ -82,12 +82,21 @@ const Admin = () => {
       return;
     }
 
-    const updateUser = (user?: { email?: string } | null) => {
-      const currentUser = identity.currentUser();
+    const hydrateUser = async (user?: { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string> } | null) => {
+      const currentUser = user ?? identity.currentUser();
+      let accessToken = currentUser?.token?.access_token ?? null;
+      if (!accessToken && currentUser?.jwt) {
+        try {
+          accessToken = await currentUser.jwt();
+        } catch {
+          accessToken = null;
+        }
+      }
+
       setState({
         ready: true,
-        userEmail: user?.email ?? currentUser?.email ?? null,
-        accessToken: currentUser?.token?.access_token ?? null,
+        userEmail: currentUser?.email ?? null,
+        accessToken,
         allowed: false,
         hasPasskey: false,
         sessionId: sessionStorage.getItem('adminSessionId'),
@@ -95,6 +104,10 @@ const Admin = () => {
         error: null,
         isBusy: false,
       });
+    };
+
+    const updateUser = (user?: { email?: string } | null) => {
+      void hydrateUser(user);
     };
 
     identity.on('init', updateUser);

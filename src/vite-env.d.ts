@@ -11,6 +11,7 @@ interface NetlifyIdentityUser {
   token?: {
     access_token?: string;
   };
+  jwt?: () => Promise<string>;
 }
 
 interface NetlifyIdentityAPI {
