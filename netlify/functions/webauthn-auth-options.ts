@@ -28,7 +28,7 @@ export const handler = async (event: { headers?: Record<string, string> }) => {
 
   const options = await generateAuthenticationOptions({
     allowCredentials: credentials.map(cred => ({
-      id: Buffer.from(cred.credential_id, 'base64url'),
+      id: cred.credential_id,
       type: 'public-key',
     })),
     userVerification: 'preferred',
