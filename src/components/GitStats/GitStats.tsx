@@ -10,7 +10,6 @@ type GitState = {
 };
 
 const username = 'bobrossrtx';
-const token = import.meta.env.VITE_GITHUB_TOKEN as string | undefined;
 
 const GitStats = () => {
   const [state, setState] = useState<GitState>({
@@ -24,7 +23,7 @@ const GitStats = () => {
 
     const fetchStats = async () => {
       try {
-        const stats = await fetchGitHubStats(username, token);
+        const stats = await fetchGitHubStats(username);
 
         if (!isMounted) return;
 
