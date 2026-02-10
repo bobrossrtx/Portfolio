@@ -50,6 +50,11 @@ export const handler = async (event: { headers?: Record<string, string> }) => {
     userID: new TextEncoder().encode(user.email),
     userName: user.email,
     attestationType: 'none',
+    authenticatorSelection: {
+      userVerification: 'preferred',
+      residentKey: 'preferred',
+      requireResidentKey: false,
+    },
     excludeCredentials: credentials.map(cred => ({
       id: Buffer.from(cred.credential_id, 'base64url'),
       type: 'public-key',

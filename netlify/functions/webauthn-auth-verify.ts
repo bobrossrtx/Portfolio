@@ -81,6 +81,7 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
       expectedChallenge,
       expectedOrigin: origin,
       expectedRPID: rpId,
+      requireUserVerification: false,
       authenticator: {
         credentialID: Buffer.from(stored[0].credential_id, 'base64url'),
         credentialPublicKey: Buffer.from(stored[0].public_key, 'base64url'),

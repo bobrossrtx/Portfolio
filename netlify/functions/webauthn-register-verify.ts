@@ -64,6 +64,7 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
         expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpId,
+        requireUserVerification: false,
       });
     } catch (error) {
       return buildResponse(400, {
