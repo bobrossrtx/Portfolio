@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser';
+import { getBlogPosts } from '../utils/blog';
 import './Admin.scss';
 
 type AdminState = {
@@ -22,6 +23,7 @@ type BlogFormState = {
   excerpt: string;
   tags: string;
   content: string;
+  author: string;
   readTime: string;
   pinned: boolean;
   publishedAt: string;
@@ -41,13 +43,38 @@ type RegisterFormState = {
   confirmPassword: string;
 };
 
-type AdminPanel = 'dashboard' | 'blog' | 'account';
+type AdminPanel = 'dashboard' | 'blog' | 'manage' | 'account';
+
+type AdminBlogPost = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  tags: string[];
+  author?: string;
+  readTime?: string;
+  pinned: boolean;
+  publishedAt?: string;
+  content: string;
+};
 
 const Admin = () => {
   const storedSessionId = sessionStorage.getItem('adminSessionId');
   const storedAccessToken = sessionStorage.getItem('adminAccessToken');
   const storedUserEmail = sessionStorage.getItem('adminUserEmail');
   const storedUserName = sessionStorage.getItem('adminUserName');
+  const defaultAuthor = 'Owen Boreham';
+  const emptyForm: BlogFormState = {
+    title: '',
+    slug: '',
+    excerpt: '',
+    tags: '',
+    content: '',
+    author: defaultAuthor,
+    readTime: '',
+    pinned: false,
+    publishedAt: '',
+  };
   const [state, setState] = useState<AdminState>({
     ready: false,
     userEmail: storedUserEmail,
@@ -61,16 +88,11 @@ const Admin = () => {
     isBusy: false,
     isCheckingAccess: false,
   });
-  const [form, setForm] = useState<BlogFormState>({
-    title: '',
-    slug: '',
-    excerpt: '',
-    tags: '',
-    content: '',
-    readTime: '',
-    pinned: false,
-    publishedAt: '',
-  });
+  const [form, setForm] = useState<BlogFormState>(emptyForm);
+  const [adminPosts, setAdminPosts] = useState<AdminBlogPost[]>([]);
+  const [isPostsLoading, setIsPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [accountForm, setAccountForm] = useState<AccountFormState>({
     displayName: '',
     currentPassword: '',
@@ -112,6 +134,67 @@ const Admin = () => {
       .map(tag => tag.trim())
       .filter(Boolean);
   }, [form.tags]);
+
+  const authorName = form.author.trim() || defaultAuthor;
+
+  const loadAdminPosts = async () => {
+    setIsPostsLoading(true);
+    if (import.meta.env.DEV) {
+      const localPosts = getBlogPosts().map(post => ({
+        id: post.slug,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt,
+        tags: post.tags,
+        author: post.author,
+        readTime: post.readTime,
+        pinned: post.pinned,
+        publishedAt: post.date,
+        content: post.content,
+      }));
+      setAdminPosts(localPosts);
+      setPostsError(null);
+      setIsPostsLoading(false);
+      return;
+    }
+    setPostsError(null);
+    try {
+      const response = await fetch('/api/blog-posts');
+      if (!response.ok) throw new Error('Unable to load blog posts.');
+      const payload = (await response.json()) as {
+        posts?: Array<{
+          id: string;
+          slug: string;
+          title: string;
+          excerpt: string | null;
+          tags: string[] | null;
+          author: string | null;
+          read_time: string | null;
+          pinned: boolean | null;
+          published_at: string | null;
+          content: string;
+        }>;
+      };
+      const normalized = (payload.posts ?? []).map(post => ({
+        id: post.id,
+        slug: post.slug,
+        title: post.title,
+        excerpt: post.excerpt ?? '',
+        tags: post.tags ?? [],
+        author: post.author ?? undefined,
+        readTime: post.read_time ?? undefined,
+        pinned: post.pinned ?? false,
+        publishedAt: post.published_at ?? undefined,
+        content: post.content,
+      }));
+      setAdminPosts(normalized);
+    } catch (error) {
+      setPostsError(error instanceof Error ? error.message : 'Unable to load blog posts.');
+      setAdminPosts([]);
+    } finally {
+      setIsPostsLoading(false);
+    }
+  };
 
   const setStatus = (status: string | null, error: string | null = null) => {
     setState(current => ({ ...current, status, error }));
@@ -667,10 +750,69 @@ const Admin = () => {
     enableDevSession('Dev bypass enabled.');
   };
 
-  const openBlogPoster = () => setActivePanel('blog');
+  const openBlogPoster = () => {
+    setEditingPostId(null);
+    setForm(emptyForm);
+    setActivePanel('blog');
+  };
   const closeBlogPoster = () => setActivePanel('dashboard');
+  const openManagePosts = () => {
+    setActivePanel('manage');
+    if (!adminPosts.length) {
+      void loadAdminPosts();
+    }
+  };
+  const closeManagePosts = () => setActivePanel('dashboard');
   const openAccountSettings = () => setActivePanel('account');
   const closeAccountSettings = () => setActivePanel('dashboard');
+
+  const handleEditPost = (post: AdminBlogPost) => {
+    setEditingPostId(post.id);
+    setForm({
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      tags: post.tags.join(', '),
+      content: post.content,
+      author: post.author ?? defaultAuthor,
+      readTime: post.readTime ?? '',
+      pinned: post.pinned,
+      publishedAt: post.publishedAt ?? '',
+    });
+    setActivePanel('blog');
+  };
+
+  const handleDeletePost = async (post: AdminBlogPost) => {
+    if (!state.accessToken || !state.sessionId) return;
+    const confirmation = window.prompt(`Type DELETE to remove "${post.title}".`);
+    if (confirmation !== 'DELETE') return;
+
+    setBusy(true);
+    setStatus('Deleting post...', null);
+    try {
+      const response = await fetch('/api/blog-delete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${state.accessToken}`,
+          'X-Admin-Session': state.sessionId,
+        },
+        body: JSON.stringify({ id: post.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to delete post.');
+      setAdminPosts(current => current.filter(item => item.id !== post.id));
+      if (editingPostId === post.id) {
+        setEditingPostId(null);
+        setForm(emptyForm);
+      }
+      setStatus('Post deleted.', null);
+    } catch (error) {
+      setStatus(null, error instanceof Error ? error.message : 'Unable to delete post.');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const handleAccountUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -816,12 +958,13 @@ const Admin = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!state.accessToken) return;
+    const isEditing = Boolean(editingPostId);
 
     setBusy(true);
-    setStatus('Publishing post...', null);
+    setStatus(isEditing ? 'Updating post...' : 'Publishing post...', null);
 
     try {
-      const response = await fetch('/api/blog-create', {
+      const response = await fetch(isEditing ? '/api/blog-update' : '/api/blog-create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -829,32 +972,27 @@ const Admin = () => {
           'X-Admin-Session': state.sessionId ?? '',
         },
         body: JSON.stringify({
+          id: editingPostId ?? undefined,
           title: form.title,
           slug: form.slug || undefined,
           excerpt: form.excerpt || undefined,
           tags: tagList,
           content: form.content,
+          author: authorName || undefined,
           readTime: form.readTime || undefined,
           pinned: form.pinned,
           publishedAt: form.publishedAt || undefined,
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? 'Unable to publish post.');
+      if (!response.ok) throw new Error(payload.error ?? (isEditing ? 'Unable to update post.' : 'Unable to publish post.'));
 
-      setForm({
-        title: '',
-        slug: '',
-        excerpt: '',
-        tags: '',
-        content: '',
-        readTime: '',
-        pinned: false,
-        publishedAt: '',
-      });
-      setStatus(`Post published (${payload.slug}).`, null);
+      setForm(emptyForm);
+      setEditingPostId(null);
+      await loadAdminPosts();
+      setStatus(isEditing ? 'Post updated.' : `Post published (${payload.slug}).`, null);
     } catch (error) {
-      setStatus(null, error instanceof Error ? error.message : 'Unable to publish post.');
+      setStatus(null, error instanceof Error ? error.message : (isEditing ? 'Unable to update post.' : 'Unable to publish post.'));
     } finally {
       setBusy(false);
     }
@@ -1016,6 +1154,9 @@ const Admin = () => {
                   <button className="btn btn--primary" type="button" onClick={openBlogPoster}>
                     Open blog publisher
                   </button>
+                  <button className="btn btn--ghost" type="button" onClick={openManagePosts}>
+                    Manage blog posts
+                  </button>
                   <button className="btn btn--ghost" type="button" onClick={openAccountSettings}>
                     Admin account settings
                   </button>
@@ -1042,6 +1183,26 @@ const Admin = () => {
                   <button className="btn btn--ghost" type="button" onClick={closeBlogPoster}>
                     Back to dashboard
                   </button>
+                  {editingPostId && (
+                    <button
+                      className="btn btn--ghost"
+                      type="button"
+                      onClick={() => {
+                        setEditingPostId(null);
+                        setForm(emptyForm);
+                      }}
+                    >
+                      Cancel edit
+                    </button>
+                  )}
+                </div>
+                <div className="admin__section">
+                  <h3 className="admin__section-title">
+                    {editingPostId ? 'Edit blog post' : 'Blog publisher'}
+                  </h3>
+                  <p className="admin__panel-body">
+                    {editingPostId ? 'Update your post and save changes.' : 'Draft a new post to publish.'}
+                  </p>
                 </div>
                 <form className="admin__form" onSubmit={handleSubmit}>
                   <div className="admin__grid">
@@ -1069,6 +1230,14 @@ const Admin = () => {
                       rows={3}
                       value={form.excerpt}
                       onChange={event => setForm(current => ({ ...current, excerpt: event.target.value }))}
+                    />
+                  </label>
+                  <label className="admin__field">
+                    <span>Author</span>
+                    <input
+                      type="text"
+                      value={form.author}
+                      disabled
                     />
                   </label>
                   <label className="admin__field">
@@ -1115,9 +1284,85 @@ const Admin = () => {
                     <span>Pin this post</span>
                   </label>
                   <button className="btn btn--primary" type="submit" disabled={state.isBusy}>
-                    Publish post
+                    {editingPostId ? 'Update post' : 'Publish post'}
                   </button>
                 </form>
+              </div>
+            )}
+
+            {canManage && activePanel === 'manage' && (
+              <div className="admin__manage">
+                <div className="admin__actions">
+                  <button className="btn btn--ghost" type="button" onClick={closeManagePosts}>
+                    Back to dashboard
+                  </button>
+                </div>
+                <div className="admin__manage-header">
+                  <div>
+                    <h3 className="admin__section-title">Manage blog posts</h3>
+                    <p className="admin__panel-body">Edit, update, or delete published posts.</p>
+                  </div>
+                  <div className="admin__manage-actions">
+                    <button
+                      className="btn btn--ghost"
+                      type="button"
+                      onClick={() => void loadAdminPosts()}
+                      disabled={isPostsLoading}
+                    >
+                      Refresh list
+                    </button>
+                    <button className="btn btn--primary" type="button" onClick={openBlogPoster}>
+                      New post
+                    </button>
+                  </div>
+                </div>
+
+                {isPostsLoading && (
+                  <p className="admin__note">Loading posts...</p>
+                )}
+                {postsError && !isPostsLoading && (
+                  <div className="admin__alert">
+                    <p>{postsError}</p>
+                  </div>
+                )}
+                {!isPostsLoading && !postsError && adminPosts.length === 0 && (
+                  <p className="admin__note">No posts published yet.</p>
+                )}
+                {!isPostsLoading && !postsError && adminPosts.length > 0 && (
+                  <div className="admin__manage-list">
+                    {adminPosts.map(post => (
+                      <div key={post.id} className="admin__manage-item">
+                        <div>
+                          <div className="admin__manage-title">
+                            {post.title}
+                            {post.pinned && <span className="admin__pill">Pinned</span>}
+                          </div>
+                          <p className="admin__manage-meta">
+                            {post.publishedAt ?? 'Unpublished'}
+                            {post.readTime ? ` · ${post.readTime}` : ''}
+                            {post.tags.length ? ` · ${post.tags.join(', ')}` : ''}
+                          </p>
+                        </div>
+                        <div className="admin__manage-actions">
+                          <button
+                            className="btn btn--ghost"
+                            type="button"
+                            onClick={() => handleEditPost(post)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn--danger"
+                            type="button"
+                            onClick={() => void handleDeletePost(post)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

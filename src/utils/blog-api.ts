@@ -1,6 +1,7 @@
 import { getBlogPosts } from './blog';
 
 export type BlogPostRecord = {
+  id?: string;
   slug: string;
   title: string;
   date: string;
@@ -14,6 +15,7 @@ export type BlogPostRecord = {
 
 type BlogApiResponse = {
   posts: Array<{
+    id: string;
     slug: string;
     title: string;
     excerpt: string | null;
@@ -27,11 +29,16 @@ type BlogApiResponse = {
 };
 
 export const fetchBlogPosts = async (): Promise<BlogPostRecord[]> => {
+  if (import.meta.env.DEV) {
+    return getBlogPosts();
+  }
   try {
     const response = await fetch('/api/blog-posts');
     if (!response.ok) throw new Error('Failed to load posts');
     const payload = (await response.json()) as BlogApiResponse;
+    if (!Array.isArray(payload.posts)) throw new Error('Invalid blog payload');
     return payload.posts.map(post => ({
+      id: post.id,
       slug: post.slug,
       title: post.title,
       date: post.published_at ?? '1970-01-01',

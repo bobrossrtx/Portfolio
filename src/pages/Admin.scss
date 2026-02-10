@@ -95,6 +95,15 @@
   color: var(--text-secondary);
 }
 
+.admin__section {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin__section-title {
+  margin: 0;
+}
+
 .admin__dashboard {
   display: grid;
   gap: 1rem;
@@ -127,6 +136,67 @@
 .admin__blog {
   display: grid;
   gap: 1rem;
+}
+
+.admin__manage {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin__manage-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.admin__manage-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.admin__manage-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin__manage-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.admin__manage-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.admin__manage-meta {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.admin__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
 }
 
 .admin__auth {
@@ -190,6 +260,21 @@
   padding: 0.65rem 0.85rem;
   font-size: 0.9rem;
   resize: vertical;
+}
+
+.admin__field textarea {
+  scrollbar-color: var(--surface) transparent;
+}
+
+.admin__field textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin__field input:disabled,
+.admin__field textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--surface) 85%, var(--background));
 }
 
 .admin__field input:focus-visible,

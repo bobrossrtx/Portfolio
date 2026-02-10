@@ -11,7 +11,7 @@ const buildResponse = (statusCode: number, body: Record<string, unknown>) => ({
 
 export const handler = async () => {
   const response = await supabaseFetch(
-    '/rest/v1/blog_posts?select=slug,title,excerpt,tags,author,read_time,pinned,published_at,content&order=pinned.desc,published_at.desc',
+    '/rest/v1/blog_posts?select=id,slug,title,excerpt,tags,author,read_time,pinned,published_at,content&order=pinned.desc,published_at.desc',
   );
 
   if (!response.ok) {

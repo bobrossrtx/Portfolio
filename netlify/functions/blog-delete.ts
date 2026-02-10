@@ -1,18 +1,6 @@
 import { assertAdminEmail, getNetlifyUser } from './_netlify';
 import { supabaseFetch } from './_supabase';
-import { slugify, writeLocalPost } from './_blog-local';
-
-type BlogPayload = {
-  title: string;
-  slug?: string;
-  content: string;
-  excerpt?: string;
-  tags?: string[];
-  author?: string;
-  readTime?: string;
-  pinned?: boolean;
-  publishedAt?: string;
-};
+import { deleteLocalPost } from './_blog-local';
 
 const buildResponse = (statusCode: number, body: Record<string, unknown>) => ({
   statusCode,
@@ -48,48 +36,28 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     return buildResponse(401, { error: 'Passkey verification required.' });
   }
 
-  const payload = event.body ? (JSON.parse(event.body) as BlogPayload) : null;
-  if (!payload?.title || !payload?.content) {
-    return buildResponse(400, { error: 'Title and content are required.' });
+  const payload = event.body ? (JSON.parse(event.body) as { id?: string }) : null;
+  if (!payload?.id) {
+    return buildResponse(400, { error: 'Post id is required.' });
   }
-
-  const slug = payload.slug?.trim() || slugify(payload.title);
-  const excerpt = payload.excerpt?.trim() || payload.content.slice(0, 160);
 
   if (process.env.NODE_ENV !== 'production') {
-    const result = await writeLocalPost({
-      title: payload.title.trim(),
-      slug,
-      content: payload.content,
-      excerpt,
-      tags: payload.tags ?? [],
-      author: payload.author?.trim() || user.email,
-      readTime: payload.readTime?.trim() || undefined,
-      pinned: payload.pinned ?? false,
-      publishedAt: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
-    });
-    return buildResponse(200, { success: true, slug: result.slug });
+    try {
+      await deleteLocalPost(payload.id);
+    } catch (error) {
+      return buildResponse(500, { error: error instanceof Error ? error.message : 'Unable to delete post.' });
+    }
+    return buildResponse(200, { success: true });
   }
 
-  const response = await supabaseFetch('/rest/v1/blog_posts', {
-    method: 'POST',
-    body: JSON.stringify({
-      slug,
-      title: payload.title.trim(),
-      content: payload.content,
-      excerpt,
-      tags: payload.tags ?? [],
-      author: payload.author?.trim() || user.email,
-      read_time: payload.readTime?.trim() || null,
-      pinned: payload.pinned ?? false,
-      published_at: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
-    }),
+  const response = await supabaseFetch(`/rest/v1/blog_posts?id=eq.${payload.id}`, {
+    method: 'DELETE',
   });
 
   if (!response.ok) {
     const error = await response.text();
-    return buildResponse(500, { error: error || 'Unable to save post.' });
+    return buildResponse(500, { error: error || 'Unable to delete post.' });
   }
 
-  return buildResponse(200, { success: true, slug });
+  return buildResponse(200, { success: true });
 };

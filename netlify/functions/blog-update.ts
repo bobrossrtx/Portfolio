@@ -2,7 +2,8 @@ import { assertAdminEmail, getNetlifyUser } from './_netlify';
 import { supabaseFetch } from './_supabase';
 import { slugify, writeLocalPost } from './_blog-local';
 
-type BlogPayload = {
+type BlogUpdatePayload = {
+  id: string;
   title: string;
   slug?: string;
   content: string;
@@ -48,9 +49,9 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     return buildResponse(401, { error: 'Passkey verification required.' });
   }
 
-  const payload = event.body ? (JSON.parse(event.body) as BlogPayload) : null;
-  if (!payload?.title || !payload?.content) {
-    return buildResponse(400, { error: 'Title and content are required.' });
+  const payload = event.body ? (JSON.parse(event.body) as BlogUpdatePayload) : null;
+  if (!payload?.id || !payload?.title || !payload?.content) {
+    return buildResponse(400, { error: 'Post id, title, and content are required.' });
   }
 
   const slug = payload.slug?.trim() || slugify(payload.title);
@@ -67,12 +68,12 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
       readTime: payload.readTime?.trim() || undefined,
       pinned: payload.pinned ?? false,
       publishedAt: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
-    });
+    }, payload.id);
     return buildResponse(200, { success: true, slug: result.slug });
   }
 
-  const response = await supabaseFetch('/rest/v1/blog_posts', {
-    method: 'POST',
+  const response = await supabaseFetch(`/rest/v1/blog_posts?id=eq.${payload.id}`, {
+    method: 'PATCH',
     body: JSON.stringify({
       slug,
       title: payload.title.trim(),
@@ -83,12 +84,13 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
       read_time: payload.readTime?.trim() || null,
       pinned: payload.pinned ?? false,
       published_at: payload.publishedAt ?? new Date().toISOString().slice(0, 10),
+      updated_at: new Date().toISOString(),
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    return buildResponse(500, { error: error || 'Unable to save post.' });
+    return buildResponse(500, { error: error || 'Unable to update post.' });
   }
 
   return buildResponse(200, { success: true, slug });
