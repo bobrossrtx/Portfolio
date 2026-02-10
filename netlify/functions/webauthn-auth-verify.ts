@@ -68,10 +68,16 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     return buildResponse(400, { error: 'Passkey not registered.' });
   }
 
-  const stored = (await credentialRes.json()) as Array<{ credential_id: string; public_key: string; counter: number }>;
-  if (!stored.length) {
+  const stored = (await credentialRes.json()) as Array<{ credential_id: string; public_key: string; counter: number | null } | null>;
+  if (!stored.length || !stored[0]) {
     return buildResponse(400, { error: 'Passkey not registered.' });
   }
+
+  const record = stored[0];
+  if (!record?.credential_id || !record?.public_key) {
+    return buildResponse(400, { error: 'Passkey record incomplete.' });
+  }
+  const storedCounter = typeof record.counter === 'number' ? record.counter : 0;
 
   const { rpId, origin } = getRpContext(event.headers);
   let verification;
@@ -83,9 +89,9 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
       expectedRPID: rpId,
       requireUserVerification: false,
       authenticator: {
-        credentialID: Buffer.from(stored[0].credential_id, 'base64url'),
-        credentialPublicKey: Buffer.from(stored[0].public_key, 'base64url'),
-        counter: stored[0].counter,
+        credentialID: Buffer.from(record.credential_id, 'base64url'),
+        credentialPublicKey: Buffer.from(record.public_key, 'base64url'),
+        counter: storedCounter,
       },
     });
   } catch (error) {
