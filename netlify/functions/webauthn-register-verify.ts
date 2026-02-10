@@ -78,7 +78,12 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
 
     const { credentialID, credentialPublicKey, counter } = verification.registrationInfo;
     if (!credentialID || !credentialPublicKey) {
-      return buildResponse(400, { error: 'Passkey registration missing credential data.' });
+      const infoKeys = Object.keys(verification.registrationInfo ?? {});
+      console.warn('Missing credential data', { verified: verification.verified, infoKeys });
+      return buildResponse(400, {
+        error: 'Passkey registration missing credential data.',
+        infoKeys,
+      });
     }
 
     const credentialId = Buffer.from(credentialID).toString('base64url');
