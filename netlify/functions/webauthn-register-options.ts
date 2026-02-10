@@ -8,12 +8,22 @@ const buildResponse = (statusCode: number, body: Record<string, unknown>) => ({
   body: JSON.stringify(body),
 });
 
-const getRpId = () => {
+const getRpContext = (headers?: Record<string, string>) => {
+  const forwardedHost = headers?.['x-forwarded-host'] || headers?.host;
+  const forwardedProto = headers?.['x-forwarded-proto'] || 'https';
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    return {
+      rpId: host.split(':')[0],
+      origin: `${forwardedProto}://${host}`,
+    };
+  }
   const url = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.SITE_URL || '';
   try {
-    return new URL(url).hostname;
+    const parsed = new URL(url);
+    return { rpId: parsed.hostname, origin: parsed.origin };
   } catch {
-    return 'localhost';
+    return { rpId: 'localhost', origin: 'http://localhost:5173' };
   }
 };
 
@@ -33,9 +43,10 @@ export const handler = async (event: { headers?: Record<string, string> }) => {
     ? (await credentialsResponse.json()) as Array<{ credential_id: string; transports: string[] | null }>
     : [];
 
+  const { rpId } = getRpContext(event.headers);
   const options = await generateRegistrationOptions({
     rpName: 'Owen Boreham Portfolio',
-    rpID: getRpId(),
+    rpID: rpId,
     userID: new TextEncoder().encode(user.email),
     userName: user.email,
     attestationType: 'none',

@@ -8,12 +8,22 @@ const buildResponse = (statusCode: number, body: Record<string, unknown>) => ({
   body: JSON.stringify(body),
 });
 
-const getRpId = () => {
+const getRpContext = (headers?: Record<string, string>) => {
+  const forwardedHost = headers?.['x-forwarded-host'] || headers?.host;
+  const forwardedProto = headers?.['x-forwarded-proto'] || 'https';
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0].trim();
+    return {
+      rpId: host.split(':')[0],
+      origin: `${forwardedProto}://${host}`,
+    };
+  }
   const url = process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.SITE_URL || '';
   try {
-    return new URL(url).hostname;
+    const parsed = new URL(url);
+    return { rpId: parsed.hostname, origin: parsed.origin };
   } catch {
-    return 'localhost';
+    return { rpId: 'localhost', origin: 'http://localhost:5173' };
   }
 };
 
@@ -63,17 +73,25 @@ export const handler = async (event: { headers?: Record<string, string>; body?: 
     return buildResponse(400, { error: 'Passkey not registered.' });
   }
 
-  const verification = await verifyAuthenticationResponse({
-    response: payload.credential,
-    expectedChallenge,
-    expectedOrigin: process.env.URL || 'http://localhost:5173',
-    expectedRPID: getRpId(),
-    authenticator: {
-      credentialID: Buffer.from(stored[0].credential_id, 'base64url'),
-      credentialPublicKey: Buffer.from(stored[0].public_key, 'base64url'),
-      counter: stored[0].counter,
-    },
-  });
+  const { rpId, origin } = getRpContext(event.headers);
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse({
+      response: payload.credential,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpId,
+      authenticator: {
+        credentialID: Buffer.from(stored[0].credential_id, 'base64url'),
+        credentialPublicKey: Buffer.from(stored[0].public_key, 'base64url'),
+        counter: stored[0].counter,
+      },
+    });
+  } catch (error) {
+    return buildResponse(400, {
+      error: error instanceof Error ? error.message : 'Passkey verification failed.',
+    });
+  }
 
   if (!verification.verified) {
     return buildResponse(400, { error: 'Passkey verification failed.' });
