@@ -1,0 +1,139 @@
+.about__grid {
+  display: grid;
+  gap: 2rem;
+  margin-top: 2.5rem;
+}
+
+.skill-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+}
+
+.skill-card__head {
+  margin-bottom: 1.5rem;
+}
+
+.skill-card__head h3 {
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
+}
+
+.skill-card__head p {
+  color: var(--text-secondary);
+  max-width: 520px;
+}
+
+.skill-card__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.skill-chip {
+  position: relative;
+  padding: 1rem 1.2rem;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--background) 60%, transparent);
+  border: 1px solid var(--border);
+}
+
+.skill-chip__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.skill-chip__name {
+  min-width: 140px;
+}
+
+.skill-chip__meta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.skill-chip__level {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--background) 70%, transparent);
+  border: 1px solid var(--border);
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.skill-chip__meter {
+  height: 6px;
+  background: var(--background);
+  border-radius: 999px;
+  margin: 0.8rem 0 0.2rem;
+  overflow: hidden;
+}
+
+.skill-chip__meter span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.skill-chip__info {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.skill-chip__info:hover,
+.skill-chip__info:focus-visible {
+  color: var(--text);
+  border-color: var(--primary);
+}
+
+.skill-tooltip {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.6rem);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1rem;
+  width: min(260px, 80vw);
+  box-shadow: var(--shadow);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(6px);
+  z-index: 10;
+}
+
+.skill-tooltip strong {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.skill-tooltip p {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  margin: 0.3rem 0;
+}
+
+.skill-chip__info:focus-visible + .skill-tooltip,
+.skill-chip__info:hover + .skill-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}

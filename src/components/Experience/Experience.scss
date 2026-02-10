@@ -1,0 +1,54 @@
+.experience__grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  margin-top: 2.5rem;
+}
+
+.experience__grid > .experience-card {
+  flex: 1 1 320px;
+  max-width: 380px;
+}
+
+.experience-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1.75rem;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
+}
+
+.experience-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.experience-card__head h3 {
+  margin: 0;
+}
+
+.experience-card__meta {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  margin: 0.5rem 0 0;
+}
+
+.experience-card__highlights {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.2rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.experience-card__highlights li::marker {
+  color: var(--primary);
+}

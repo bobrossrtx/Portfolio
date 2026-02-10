@@ -1,0 +1,145 @@
+.education__timeline {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 1.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.education__item {
+  position: relative;
+  padding-left: 2.25rem;
+}
+
+.education__item::before {
+  content: '';
+  position: absolute;
+  left: 0.65rem;
+  top: 0.9rem;
+  bottom: -1.75rem;
+  width: 1px;
+  background: var(--border);
+}
+
+.education__item:last-child::before {
+  display: none;
+}
+
+.education__dot {
+  position: absolute;
+  left: 0.25rem;
+  top: 0.65rem;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--primary) 65%, var(--border));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.education-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 1rem;
+}
+
+.education-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.education-card__time {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+
+.education-card__title {
+  margin: 0;
+}
+
+.education-card__meta {
+  margin-top: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.education-card__status {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--background) 60%, transparent);
+}
+
+.education-card__status--done {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+}
+
+.education-card__status--progress {
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  color: var(--text);
+}
+
+.education-card__highlights {
+  display: grid;
+  gap: 0.6rem;
+  padding-left: 1.2rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.education-card__highlights li::marker {
+  color: var(--primary);
+}
+
+.education__subsection {
+  margin-top: 3rem;
+}
+
+.education__subtitle {
+  font-family: var(--font-serif);
+  font-size: clamp(1.15rem, 2.2vw, 1.6rem);
+  margin: 0 0 1rem;
+}
+
+.education-card--self {
+  gap: 1.25rem;
+}
+
+.education-card__lead {
+  margin: 0;
+  color: var(--text-secondary);
+  max-width: 75ch;
+}
+
+.education-card__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.education-card__miniTitle {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.education-card__highlights--tight {
+  gap: 0.5rem;
+  font-size: 0.92rem;
+}
