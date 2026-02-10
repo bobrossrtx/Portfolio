@@ -226,7 +226,12 @@ const Admin = () => {
       setState(current => ({ ...current, hasPasskey: true }));
       setStatus('Passkey registered. You can now verify to unlock admin tools.', null);
     } catch (error) {
-      setStatus(null, error instanceof Error ? error.message : 'Passkey registration failed.');
+      const message = error instanceof Error
+        ? error.name === 'NotAllowedError'
+          ? 'Passkey creation failed.'
+          : error.message
+        : 'Passkey creation failed.';
+      setStatus(null, message);
     } finally {
       setBusy(false);
     }
