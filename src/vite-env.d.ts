@@ -8,6 +8,9 @@ declare module '*.wav' {
 interface NetlifyIdentityUser {
   email?: string;
   id?: string;
+  token?: {
+    access_token?: string;
+  };
 }
 
 interface NetlifyIdentityAPI {

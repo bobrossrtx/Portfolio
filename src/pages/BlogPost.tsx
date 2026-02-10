@@ -1,13 +1,53 @@
 import { Link, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { getBlogPosts } from '../utils/blog';
+import { fetchBlogPosts, type BlogPostRecord } from '../utils/blog-api';
 import ErrorPage from './Error';
 import './Blog.scss';
 
 const BlogPost = () => {
   const { slug } = useParams();
-  const posts = getBlogPosts();
-  const post = posts.find(item => item.slug === slug);
+  const [post, setPost] = useState<BlogPostRecord | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPost = async () => {
+      try {
+        const posts = await fetchBlogPosts();
+        if (!isMounted) return;
+        const match = posts.find(item => item.slug === slug) ?? null;
+        setPost(match);
+        setIsLoading(false);
+        setError(null);
+      } catch (error) {
+        if (!isMounted) return;
+        setPost(null);
+        setIsLoading(false);
+        setError(error instanceof Error ? error.message : 'Unable to load post.');
+      }
+    };
+
+    loadPost();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <section className="section blog-post" aria-live="polite">
+        <p>Loading post...</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return <ErrorPage code={500} guarded />;
+  }
 
   if (!post) {
     return <ErrorPage code={404} guarded />;

@@ -3,6 +3,7 @@ import './Footer.scss';
 
 const Footer = () => {
   const year = new Date().getFullYear();
+  const isRelease = import.meta.env.VITE_RELEASE === 'true';
 
   return (
     <footer className="site-footer">
@@ -33,6 +34,7 @@ const Footer = () => {
 
       <div className="site-footer__bottom">
         <p>© {year} Owen Boreham. Built with React + TypeScript.</p>
+        {!isRelease && <span className="site-footer__dev">Dev mode</span>}
       </div>
     </footer>
   );

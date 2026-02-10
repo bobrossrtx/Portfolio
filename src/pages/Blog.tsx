@@ -1,15 +1,42 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FaThumbtack } from 'react-icons/fa6';
-import { getBlogPosts } from '../utils/blog';
+import { fetchBlogPosts, type BlogPostRecord } from '../utils/blog-api';
 import './Blog.scss';
 
 const Blog = () => {
-  const posts = getBlogPosts();
+  const [posts, setPosts] = useState<BlogPostRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [filters, setFilters] = useState({ pinnedOnly: false, includeTags: false });
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPosts = async () => {
+      try {
+        const data = await fetchBlogPosts();
+        if (!isMounted) return;
+        setPosts(data);
+        setIsLoading(false);
+        setError(null);
+      } catch (error) {
+        if (!isMounted) return;
+        setPosts([]);
+        setIsLoading(false);
+        setError(error instanceof Error ? error.message : 'Unable to load posts.');
+      }
+    };
+
+    loadPosts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
@@ -146,6 +173,16 @@ const Blog = () => {
       </div>
 
       <div className="blog__list">
+        {isLoading && (
+          <div className="blog__empty">
+            <p>Loading posts...</p>
+          </div>
+        )}
+        {error && !isLoading && (
+          <div className="blog__empty">
+            <p>{error}</p>
+          </div>
+        )}
         {visiblePosts.map(post => {
           const terms = query
             .toLowerCase()
@@ -193,7 +230,7 @@ const Blog = () => {
           </article>
           );
         })}
-        {!filteredPosts.length && (
+        {!isLoading && !error && !filteredPosts.length && (
           <div className="blog__empty">
             <p>No posts match that search yet.</p>
           </div>
