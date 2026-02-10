@@ -12,6 +12,7 @@ type AdminState = {
   status: string | null;
   error: string | null;
   isBusy: boolean;
+  isCheckingAccess: boolean;
 };
 
 type BlogFormState = {
@@ -36,6 +37,7 @@ const Admin = () => {
     status: null,
     error: null,
     isBusy: false,
+    isCheckingAccess: false,
   });
   const [form, setForm] = useState<BlogFormState>({
     title: '',
@@ -109,6 +111,7 @@ const Admin = () => {
         status: null,
         error: null,
         isBusy: false,
+        isCheckingAccess: false,
       });
     };
 
@@ -139,10 +142,11 @@ const Admin = () => {
         if (!identityUser) return;
         const accessToken = await resolveAccessToken(identityUser);
         if (!accessToken) return;
-        setState(current => ({ ...current, accessToken }));
+        setState(current => ({ ...current, accessToken, isCheckingAccess: true }));
         return;
       }
       try {
+        setState(current => ({ ...current, isCheckingAccess: true }));
         const response = await fetch('/api/admin-status', {
           headers: {
             Authorization: `Bearer ${state.accessToken}`,
@@ -153,12 +157,14 @@ const Admin = () => {
           ...current,
           allowed: payload.allowed,
           hasPasskey: payload.hasPasskey,
+          isCheckingAccess: false,
         }));
       } catch {
         setState(current => ({
           ...current,
           allowed: false,
           hasPasskey: false,
+          isCheckingAccess: false,
         }));
       }
     };
@@ -177,6 +183,7 @@ const Admin = () => {
         allowed: true,
         hasPasskey: true,
         sessionId: 'dev',
+        isCheckingAccess: false,
       }));
       setStatus('Dev mode login enabled.', null);
       return;
@@ -345,13 +352,19 @@ const Admin = () => {
               <span className="admin__value">{state.userEmail}</span>
             </div>
 
-            {!state.allowed && (
+            {state.isCheckingAccess && (
+              <div className="admin__alert admin__alert--neutral">
+                <p>Checking admin access...</p>
+              </div>
+            )}
+
+            {!state.allowed && !state.isCheckingAccess && (
               <div className="admin__alert">
                 <p>This account is not allowlisted for admin access.</p>
               </div>
             )}
 
-            {state.allowed && (
+            {state.allowed && !state.isCheckingAccess && (
               <div className="admin__passkey">
                 <p className="admin__label">Passkey verification</p>
                 <div className="admin__actions">
