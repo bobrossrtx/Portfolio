@@ -211,7 +211,7 @@ const Admin = () => {
       const { options, error } = await optionsResponse.json();
       if (!optionsResponse.ok) throw new Error(error ?? 'Unable to register passkey.');
 
-      const credential = await startRegistration(options);
+      const credential = await startRegistration({ optionsJSON: options });
       const verifyResponse = await fetch('/api/webauthn-register-verify', {
         method: 'POST',
         headers: {
@@ -251,7 +251,7 @@ const Admin = () => {
       const { options, error } = await optionsResponse.json();
       if (!optionsResponse.ok) throw new Error(error ?? 'Unable to verify passkey.');
 
-      const credential = await startAuthentication(options);
+      const credential = await startAuthentication({ optionsJSON: options });
       const verifyResponse = await fetch('/api/webauthn-auth-verify', {
         method: 'POST',
         headers: {
@@ -267,7 +267,12 @@ const Admin = () => {
       setState(current => ({ ...current, sessionId: payload.sessionId }));
       setStatus('Passkey verified. Admin tools unlocked.', null);
     } catch (error) {
-      setStatus(null, error instanceof Error ? error.message : 'Passkey verification failed.');
+      const message = error instanceof Error
+        ? error.name === 'NotAllowedError'
+          ? 'Passkey verification failed.'
+          : error.message
+        : 'Passkey verification failed.';
+      setStatus(null, message);
     } finally {
       setBusy(false);
     }
