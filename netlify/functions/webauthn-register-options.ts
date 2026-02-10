@@ -36,7 +36,7 @@ export const handler = async (event: { headers?: Record<string, string> }) => {
   const options = await generateRegistrationOptions({
     rpName: 'Owen Boreham Portfolio',
     rpID: getRpId(),
-    userID: user.email,
+    userID: new TextEncoder().encode(user.email),
     userName: user.email,
     attestationType: 'none',
     excludeCredentials: credentials.map(cred => ({
