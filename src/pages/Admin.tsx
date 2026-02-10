@@ -5,6 +5,7 @@ import './Admin.scss';
 type AdminState = {
   ready: boolean;
   userEmail: string | null;
+  userName: string | null;
   accessToken: string | null;
   allowed: boolean;
   hasPasskey: boolean;
@@ -26,14 +27,35 @@ type BlogFormState = {
   publishedAt: string;
 };
 
+type AccountFormState = {
+  displayName: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+type RegisterFormState = {
+  email: string;
+  displayName: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type AdminPanel = 'dashboard' | 'blog' | 'account';
+
 const Admin = () => {
+  const storedSessionId = sessionStorage.getItem('adminSessionId');
+  const storedAccessToken = sessionStorage.getItem('adminAccessToken');
+  const storedUserEmail = sessionStorage.getItem('adminUserEmail');
+  const storedUserName = sessionStorage.getItem('adminUserName');
   const [state, setState] = useState<AdminState>({
     ready: false,
-    userEmail: null,
-    accessToken: null,
+    userEmail: storedUserEmail,
+    userName: storedUserName,
+    accessToken: storedAccessToken,
     allowed: false,
     hasPasskey: false,
-    sessionId: sessionStorage.getItem('adminSessionId'),
+    sessionId: storedSessionId,
     status: null,
     error: null,
     isBusy: false,
@@ -49,9 +71,30 @@ const Admin = () => {
     pinned: false,
     publishedAt: '',
   });
+  const [accountForm, setAccountForm] = useState<AccountFormState>({
+    displayName: '',
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [registerForm, setRegisterForm] = useState<RegisterFormState>({
+    email: '',
+    displayName: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [deletePassword, setDeletePassword] = useState('');
+  const [activePanel, setActivePanel] = useState<AdminPanel>('dashboard');
+  const [authPanel, setAuthPanel] = useState<'login' | 'register'>('login');
 
   const isVerified = Boolean(state.sessionId);
   const canManage = state.allowed && isVerified;
+
+  useEffect(() => {
+    if (!canManage) {
+      setActivePanel('dashboard');
+    }
+  }, [canManage]);
 
   const tagList = useMemo(() => {
     return form.tags
@@ -81,29 +124,158 @@ const Admin = () => {
     return null;
   };
 
-  useEffect(() => {
-    const identity = window.netlifyIdentity;
-    if (!identity) {
-      setState(current => ({
-        ...current,
-        ready: true,
-        userEmail: null,
-        accessToken: null,
-        allowed: false,
-        hasPasskey: false,
-        status: null,
-        error: null,
-      }));
-      return;
+  const persistIdentity = (email: string | null, name: string | null, token: string | null) => {
+    if (email) {
+      sessionStorage.setItem('adminUserEmail', email);
+    } else {
+      sessionStorage.removeItem('adminUserEmail');
     }
+    if (name) {
+      sessionStorage.setItem('adminUserName', name);
+    } else {
+      sessionStorage.removeItem('adminUserName');
+    }
+    if (token) {
+      sessionStorage.setItem('adminAccessToken', token);
+    } else {
+      sessionStorage.removeItem('adminAccessToken');
+    }
+  };
 
-    const hydrateUser = async (user?: { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string> } | null) => {
-      const currentUser = user ?? identity.currentUser();
+  const getDisplayName = (identityUser?: { user_metadata?: { full_name?: string; name?: string; username?: string } } | null) => {
+    const metadata = identityUser?.user_metadata;
+    return metadata?.full_name ?? metadata?.name ?? metadata?.username ?? '';
+  };
+
+  const updateIdentityUser = async (identityUser: {
+    update?: (data: Record<string, unknown>, callback?: (error?: { message?: string }) => void) => Promise<unknown> | void;
+  } | null, data: Record<string, unknown>) => {
+    if (!identityUser?.update) throw new Error('Identity update unavailable.');
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (error?: { message?: string }) => {
+        if (settled) return;
+        settled = true;
+        if (error) {
+          reject(new Error(error.message ?? 'Unable to update account.'));
+        } else {
+          resolve();
+        }
+      };
+      const maybePromise = identityUser.update(data, finish);
+      if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
+        (maybePromise as Promise<unknown>)
+          .then(() => finish())
+          .catch(error => finish({ message: error instanceof Error ? error.message : 'Unable to update account.' }));
+      }
+    });
+  };
+
+  const loginIdentityUser = async (email: string, password: string) => {
+    const identity = window.netlifyIdentity;
+    if (!identity?.login) throw new Error('Identity login unavailable.');
+    const user = await new Promise<unknown>((resolve, reject) => {
+      let settled = false;
+      const finish = (error?: { message?: string }, result?: unknown) => {
+        if (settled) return;
+        settled = true;
+        if (error) {
+          reject(new Error(error.message ?? 'Unable to verify password.'));
+        } else {
+          resolve(result);
+        }
+      };
+      const maybePromise = identity.login(email, password, true, finish);
+      if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
+        (maybePromise as Promise<unknown>)
+          .then(result => finish(undefined, result))
+          .catch(error => finish({ message: error instanceof Error ? error.message : 'Unable to verify password.' }));
+      }
+    });
+    return user as { delete?: (callback?: (error?: { message?: string }) => void) => Promise<unknown> | void } | null;
+  };
+
+  const deleteIdentityUser = async (identityUser: {
+    delete?: (callback?: (error?: { message?: string }) => void) => Promise<unknown> | void;
+  } | null) => {
+    if (!identityUser?.delete) throw new Error('Identity delete unavailable.');
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = (error?: { message?: string }) => {
+        if (settled) return;
+        settled = true;
+        if (error) {
+          reject(new Error(error.message ?? 'Unable to delete account.'));
+        } else {
+          resolve();
+        }
+      };
+      const maybePromise = identityUser.delete(finish);
+      if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
+        (maybePromise as Promise<unknown>)
+          .then(() => finish())
+          .catch(error => finish({ message: error instanceof Error ? error.message : 'Unable to delete account.' }));
+      }
+    });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    const hydrateFromToken = async (token: string) => {
+      try {
+        const response = await fetch('/.netlify/identity/user', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) return false;
+        const user = (await response.json()) as {
+          email?: string;
+          user_metadata?: { full_name?: string; name?: string; username?: string };
+        };
+        if (!user?.email) return false;
+
+        const displayName = getDisplayName(user ?? null);
+        setState({
+          ready: true,
+          userEmail: user.email,
+          userName: displayName || null,
+          accessToken: token,
+          allowed: false,
+          hasPasskey: false,
+          sessionId: sessionStorage.getItem('adminSessionId'),
+          status: null,
+          error: null,
+          isBusy: false,
+          isCheckingAccess: false,
+        });
+        persistIdentity(user.email, displayName || null, token);
+        setAccountForm(current => ({
+          ...current,
+          displayName,
+        }));
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const hydrateUser = async (
+      identity: { currentUser?: () => { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string>; user_metadata?: { full_name?: string; name?: string; username?: string } } | null },
+      user?: { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string>; user_metadata?: { full_name?: string; name?: string; username?: string } } | null,
+    ) => {
+      if (cancelled) return;
+      const currentUser = user ?? identity.currentUser?.() ?? null;
       const accessToken = await resolveAccessToken(currentUser ?? null);
+      const displayName = getDisplayName(currentUser ?? null);
 
+      if (cancelled) return;
       setState({
         ready: true,
         userEmail: currentUser?.email ?? null,
+        userName: displayName || null,
         accessToken,
         allowed: false,
         hasPasskey: false,
@@ -113,17 +285,93 @@ const Admin = () => {
         isBusy: false,
         isCheckingAccess: false,
       });
+      persistIdentity(currentUser?.email ?? null, displayName || null, accessToken);
+      setAccountForm(current => ({
+        ...current,
+        displayName,
+      }));
     };
 
-    const updateUser = (user?: { email?: string } | null) => {
-      void hydrateUser(user);
+    const initIdentity = () => {
+      if (cancelled) return;
+      const identity = window.netlifyIdentity;
+      if (!identity) {
+        attempts += 1;
+        if (attempts <= 12) {
+          window.setTimeout(initIdentity, 250);
+        } else {
+          if (sessionStorage.getItem('adminAccessToken')) return;
+          setState(current => ({
+            ...current,
+            ready: true,
+            userEmail: null,
+            accessToken: null,
+            allowed: false,
+            hasPasskey: false,
+            status: null,
+            error: null,
+          }));
+          persistIdentity(null, null, null);
+        }
+        return;
+      }
+
+      const retryHydrate = (remaining: number) => {
+        if (cancelled) return;
+        const existingUser = identity.currentUser?.() ?? null;
+        if (existingUser) {
+          void hydrateUser(identity, existingUser);
+          return;
+        }
+        if (remaining <= 0) {
+          if (sessionStorage.getItem('adminAccessToken')) return;
+          setState(current => ({
+            ...current,
+            ready: true,
+            userEmail: null,
+            accessToken: null,
+            allowed: false,
+            hasPasskey: false,
+            status: null,
+            error: null,
+          }));
+          return;
+        }
+        window.setTimeout(() => retryHydrate(remaining - 1), 250);
+      };
+
+      const updateUser = (user?: { email?: string } | null) => {
+        if (user) {
+          void hydrateUser(identity, user);
+          return;
+        }
+        retryHydrate(8);
+      };
+
+      identity.on('init', updateUser);
+      identity.on('login', updateUser);
+      identity.on('logout', () => updateUser(null));
+
+      identity.init();
+      retryHydrate(8);
     };
 
-    identity.on('init', updateUser);
-    identity.on('login', updateUser);
-    identity.on('logout', () => updateUser(null));
+    const boot = async () => {
+      const storedToken = sessionStorage.getItem('adminAccessToken');
+      if (storedToken) {
+        const hydrated = await hydrateFromToken(storedToken);
+        if (!hydrated) {
+          persistIdentity(null, null, null);
+        }
+      }
+      initIdentity();
+    };
 
-    updateUser(identity.currentUser());
+    void boot();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -175,10 +423,14 @@ const Admin = () => {
   const handleLogin = () => {
     if (import.meta.env.DEV) {
       sessionStorage.setItem('adminSessionId', 'dev');
+      sessionStorage.setItem('adminAccessToken', 'dev');
+      sessionStorage.setItem('adminUserEmail', 'dev@local');
+      sessionStorage.setItem('adminUserName', 'Dev Admin');
       setState(current => ({
         ...current,
         ready: true,
         userEmail: current.userEmail ?? 'dev@local',
+        userName: current.userName ?? 'Dev Admin',
         accessToken: current.accessToken ?? 'dev',
         allowed: true,
         hasPasskey: true,
@@ -191,10 +443,93 @@ const Admin = () => {
     window.netlifyIdentity?.open('login');
   };
 
+  const handleOpenRegister = () => {
+    setAuthPanel('register');
+    setStatus(null, null);
+  };
+
+  const handleCloseRegister = () => {
+    setAuthPanel('login');
+    setRegisterForm({
+      email: '',
+      displayName: '',
+      password: '',
+      confirmPassword: '',
+    });
+    setStatus(null, null);
+  };
+
+  const handleRegisterAccount = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const identity = window.netlifyIdentity;
+    if (!identity?.signup) {
+      setStatus(null, 'Identity signup unavailable.');
+      return;
+    }
+
+    const email = registerForm.email.trim();
+    const displayName = registerForm.displayName.trim();
+    if (!email) {
+      setStatus(null, 'Email is required.');
+      return;
+    }
+    if (!registerForm.password) {
+      setStatus(null, 'Password is required.');
+      return;
+    }
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setStatus(null, 'Password confirmation does not match.');
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Creating account...', null);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const finish = (error?: { message?: string }) => {
+          if (settled) return;
+          settled = true;
+          if (error) {
+            reject(new Error(error.message ?? 'Unable to create account.'));
+          } else {
+            resolve();
+          }
+        };
+        const maybePromise = identity.signup(
+          email,
+          registerForm.password,
+          displayName ? { full_name: displayName } : undefined,
+          finish,
+        );
+        if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
+          (maybePromise as Promise<unknown>)
+            .then(() => finish())
+            .catch(error => finish({ message: error instanceof Error ? error.message : 'Unable to create account.' }));
+        }
+      });
+      setStatus('Account created. Check your email to confirm before logging in.', null);
+      handleCloseRegister();
+    } catch (error) {
+      setStatus(null, error instanceof Error ? error.message : 'Unable to create account.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleLogout = () => {
     window.netlifyIdentity?.logout();
     sessionStorage.removeItem('adminSessionId');
-    setState(current => ({ ...current, sessionId: null }));
+    persistIdentity(null, null, null);
+    setState(current => ({
+      ...current,
+      userEmail: null,
+      userName: null,
+      accessToken: null,
+      allowed: false,
+      hasPasskey: false,
+      sessionId: null,
+    }));
   };
 
   const handleRegisterPasskey = async () => {
@@ -264,6 +599,15 @@ const Admin = () => {
       if (!verifyResponse.ok) throw new Error(payload.error ?? 'Passkey verification failed.');
 
       sessionStorage.setItem('adminSessionId', payload.sessionId);
+      if (state.userEmail) {
+        sessionStorage.setItem('adminUserEmail', state.userEmail);
+      }
+      if (state.userName) {
+        sessionStorage.setItem('adminUserName', state.userName);
+      }
+      if (state.accessToken) {
+        sessionStorage.setItem('adminAccessToken', state.accessToken);
+      }
       setState(current => ({ ...current, sessionId: payload.sessionId }));
       setStatus('Passkey verified. Admin tools unlocked.', null);
     } catch (error) {
@@ -282,6 +626,152 @@ const Admin = () => {
     sessionStorage.setItem('adminSessionId', 'dev');
     setState(current => ({ ...current, sessionId: 'dev' }));
     setStatus('Dev bypass enabled.', null);
+  };
+
+  const openBlogPoster = () => setActivePanel('blog');
+  const closeBlogPoster = () => setActivePanel('dashboard');
+  const openAccountSettings = () => setActivePanel('account');
+  const closeAccountSettings = () => setActivePanel('dashboard');
+
+  const handleAccountUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const identityUser = window.netlifyIdentity?.currentUser();
+    if (!identityUser) {
+      setStatus(null, 'No authenticated user found.');
+      return;
+    }
+
+    const displayName = accountForm.displayName.trim();
+    const wantsPassword = Boolean(accountForm.newPassword || accountForm.confirmPassword || accountForm.currentPassword);
+    if (wantsPassword) {
+      if (!accountForm.currentPassword) {
+        setStatus(null, 'Enter your current password to set a new one.');
+        return;
+      }
+      if (!accountForm.newPassword) {
+        setStatus(null, 'Enter a new password.');
+        return;
+      }
+      if (accountForm.newPassword !== accountForm.confirmPassword) {
+        setStatus(null, 'New password and confirmation do not match.');
+        return;
+      }
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (displayName && displayName !== (state.userName ?? '')) {
+      updates.user_metadata = { full_name: displayName };
+    }
+    if (wantsPassword) {
+      updates.password = accountForm.newPassword;
+      updates.current_password = accountForm.currentPassword;
+    }
+
+    if (!Object.keys(updates).length) {
+      setStatus('No changes to save.', null);
+      return;
+    }
+
+    setBusy(true);
+    setStatus('Updating account...', null);
+    try {
+      await updateIdentityUser(identityUser, updates);
+      setState(current => ({ ...current, userName: displayName || current.userName }));
+      setAccountForm(current => ({
+        ...current,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }));
+      setStatus('Account updated.', null);
+    } catch (error) {
+      setStatus(null, error instanceof Error ? error.message : 'Unable to update account.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResetPasskeys = async () => {
+    if (!state.accessToken || !state.sessionId) return;
+    setBusy(true);
+    setStatus('Resetting passkeys...', null);
+
+    try {
+      const response = await fetch('/api/webauthn-reset', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${state.accessToken}`,
+          'X-Admin-Session': state.sessionId,
+        },
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to reset passkeys.');
+
+      sessionStorage.removeItem('adminSessionId');
+      setState(current => ({
+        ...current,
+        hasPasskey: false,
+        sessionId: null,
+      }));
+      setActivePanel('dashboard');
+      setStatus('Passkeys cleared. Register a new passkey to continue.', null);
+    } catch (error) {
+      setStatus(null, error instanceof Error ? error.message : 'Unable to reset passkeys.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!state.userEmail) {
+      setStatus(null, 'No authenticated email found.');
+      return;
+    }
+    if (!deletePassword) {
+      setStatus(null, 'Enter your password to delete the account.');
+      return;
+    }
+    const confirmation = window.prompt('Type DELETE to remove your admin account.');
+    if (confirmation !== 'DELETE') return;
+
+    setBusy(true);
+    setStatus('Deleting account...', null);
+
+    try {
+      const deleteUser = await loginIdentityUser(state.userEmail, deletePassword);
+      if (state.accessToken && state.sessionId) {
+        await fetch('/api/webauthn-reset', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${state.accessToken}`,
+            'X-Admin-Session': state.sessionId,
+          },
+        });
+      }
+      if (!deleteUser) {
+        throw new Error('Unable to verify account for deletion.');
+      }
+      await deleteIdentityUser(deleteUser);
+      sessionStorage.removeItem('adminSessionId');
+      setState({
+        ready: true,
+        userEmail: null,
+        userName: null,
+        accessToken: null,
+        allowed: false,
+        hasPasskey: false,
+        sessionId: null,
+        status: 'Account deleted.',
+        error: null,
+        isBusy: false,
+        isCheckingAccess: false,
+      });
+      setDeletePassword('');
+    } catch (error) {
+      setStatus(null, error instanceof Error ? error.message : 'Unable to delete account.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -345,14 +835,74 @@ const Admin = () => {
         )}
 
         {state.ready && !state.userEmail && (
-          <div className="admin__actions">
-            <button className="btn btn--primary" type="button" onClick={handleLogin}>
-              Admin login
-            </button>
-            <p className="admin__note">
-              Only you should have access. We'll add passkeys next.
-            </p>
-          </div>
+          authPanel === 'login'
+            ? (
+              <div className="admin__actions">
+                <button className="btn btn--primary" type="button" onClick={handleLogin}>
+                  Admin login
+                </button>
+                <button className="btn btn--ghost" type="button" onClick={handleOpenRegister}>
+                  Create admin account
+                </button>
+                <p className="admin__note">
+                  Only allowlisted accounts can access admin tools.
+                </p>
+              </div>
+            )
+            : (
+              <form className="admin__form admin__auth" onSubmit={handleRegisterAccount}>
+                <div className="admin__grid">
+                  <label className="admin__field">
+                    <span>Email</span>
+                    <input
+                      type="email"
+                      value={registerForm.email}
+                      onChange={event => setRegisterForm(current => ({ ...current, email: event.target.value }))}
+                      required
+                    />
+                  </label>
+                  <label className="admin__field">
+                    <span>Display name</span>
+                    <input
+                      type="text"
+                      value={registerForm.displayName}
+                      onChange={event => setRegisterForm(current => ({ ...current, displayName: event.target.value }))}
+                    />
+                  </label>
+                </div>
+                <div className="admin__grid">
+                  <label className="admin__field">
+                    <span>Password</span>
+                    <input
+                      type="password"
+                      value={registerForm.password}
+                      onChange={event => setRegisterForm(current => ({ ...current, password: event.target.value }))}
+                      required
+                    />
+                  </label>
+                  <label className="admin__field">
+                    <span>Confirm password</span>
+                    <input
+                      type="password"
+                      value={registerForm.confirmPassword}
+                      onChange={event => setRegisterForm(current => ({ ...current, confirmPassword: event.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div className="admin__actions">
+                  <button className="btn btn--primary" type="submit" disabled={state.isBusy}>
+                    Create account
+                  </button>
+                  <button className="btn btn--ghost" type="button" onClick={handleCloseRegister}>
+                    Back to login
+                  </button>
+                </div>
+                <p className="admin__note">
+                  You'll receive a confirmation email before you can log in.
+                </p>
+              </form>
+            )
         )}
 
         {state.ready && state.userEmail && (
@@ -374,7 +924,7 @@ const Admin = () => {
               </div>
             )}
 
-            {state.allowed && !state.isCheckingAccess && (
+            {state.allowed && !state.isCheckingAccess && !isVerified && (
               <div className="admin__passkey">
                 <p className="admin__label">Passkey verification</p>
                 <div className="admin__actions">
@@ -415,82 +965,193 @@ const Admin = () => {
               </div>
             )}
 
-            {canManage && (
-              <form className="admin__form" onSubmit={handleSubmit}>
-                <div className="admin__grid">
+            {canManage && activePanel === 'dashboard' && (
+              <div className="admin__dashboard">
+                <div className="admin__dashboard-header">
+                  <div className="admin__panel-body">
+                    <p>Welcome back. Choose a tool to continue.</p>
+                  </div>
+                  <span className="admin__badge">Verified</span>
+                </div>
+                <div className="admin__actions">
+                  <button className="btn btn--primary" type="button" onClick={openBlogPoster}>
+                    Open blog publisher
+                  </button>
+                  <button className="btn btn--ghost" type="button" onClick={openAccountSettings}>
+                    Admin account settings
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {canManage && activePanel === 'blog' && (
+              <div className="admin__blog">
+                <div className="admin__actions">
+                  <button className="btn btn--ghost" type="button" onClick={closeBlogPoster}>
+                    Back to dashboard
+                  </button>
+                </div>
+                <form className="admin__form" onSubmit={handleSubmit}>
+                  <div className="admin__grid">
+                    <label className="admin__field">
+                      <span>Title</span>
+                      <input
+                        type="text"
+                        value={form.title}
+                        onChange={event => setForm(current => ({ ...current, title: event.target.value }))}
+                        required
+                      />
+                    </label>
+                    <label className="admin__field">
+                      <span>Slug (optional)</span>
+                      <input
+                        type="text"
+                        value={form.slug}
+                        onChange={event => setForm(current => ({ ...current, slug: event.target.value }))}
+                      />
+                    </label>
+                  </div>
                   <label className="admin__field">
-                    <span>Title</span>
+                    <span>Excerpt</span>
+                    <textarea
+                      rows={3}
+                      value={form.excerpt}
+                      onChange={event => setForm(current => ({ ...current, excerpt: event.target.value }))}
+                    />
+                  </label>
+                  <label className="admin__field">
+                    <span>Tags (comma-separated)</span>
                     <input
                       type="text"
-                      value={form.title}
-                      onChange={event => setForm(current => ({ ...current, title: event.target.value }))}
+                      value={form.tags}
+                      onChange={event => setForm(current => ({ ...current, tags: event.target.value }))}
+                    />
+                  </label>
+                  <label className="admin__field">
+                    <span>Content (Markdown)</span>
+                    <textarea
+                      rows={10}
+                      value={form.content}
+                      onChange={event => setForm(current => ({ ...current, content: event.target.value }))}
                       required
                     />
                   </label>
-                  <label className="admin__field">
-                    <span>Slug (optional)</span>
+                  <div className="admin__grid">
+                    <label className="admin__field">
+                      <span>Read time</span>
+                      <input
+                        type="text"
+                        value={form.readTime}
+                        onChange={event => setForm(current => ({ ...current, readTime: event.target.value }))}
+                      />
+                    </label>
+                    <label className="admin__field">
+                      <span>Publish date</span>
+                      <input
+                        type="date"
+                        value={form.publishedAt}
+                        onChange={event => setForm(current => ({ ...current, publishedAt: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  <label className="admin__checkbox">
                     <input
-                      type="text"
-                      value={form.slug}
-                      onChange={event => setForm(current => ({ ...current, slug: event.target.value }))}
+                      type="checkbox"
+                      checked={form.pinned}
+                      onChange={event => setForm(current => ({ ...current, pinned: event.target.checked }))}
                     />
+                    <span>Pin this post</span>
                   </label>
+                  <button className="btn btn--primary" type="submit" disabled={state.isBusy}>
+                    Publish post
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {canManage && activePanel === 'account' && (
+              <div className="admin__account">
+                <div className="admin__actions">
+                  <button className="btn btn--ghost" type="button" onClick={closeAccountSettings}>
+                    Back to dashboard
+                  </button>
                 </div>
-                <label className="admin__field">
-                  <span>Excerpt</span>
-                  <textarea
-                    rows={3}
-                    value={form.excerpt}
-                    onChange={event => setForm(current => ({ ...current, excerpt: event.target.value }))}
-                  />
-                </label>
-                <label className="admin__field">
-                  <span>Tags (comma-separated)</span>
-                  <input
-                    type="text"
-                    value={form.tags}
-                    onChange={event => setForm(current => ({ ...current, tags: event.target.value }))}
-                  />
-                </label>
-                <label className="admin__field">
-                  <span>Content (Markdown)</span>
-                  <textarea
-                    rows={10}
-                    value={form.content}
-                    onChange={event => setForm(current => ({ ...current, content: event.target.value }))}
-                    required
-                  />
-                </label>
-                <div className="admin__grid">
+                <form className="admin__form" onSubmit={handleAccountUpdate}>
+                  <div className="admin__grid">
+                    <label className="admin__field">
+                      <span>Display name</span>
+                      <input
+                        type="text"
+                        value={accountForm.displayName}
+                        onChange={event => setAccountForm(current => ({ ...current, displayName: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  <div className="admin__panel-body">
+                    <p>Password changes require your current password.</p>
+                  </div>
+                  <div className="admin__grid">
+                    <label className="admin__field">
+                      <span>Current password</span>
+                      <input
+                        type="password"
+                        value={accountForm.currentPassword}
+                        onChange={event => setAccountForm(current => ({ ...current, currentPassword: event.target.value }))}
+                      />
+                    </label>
+                    <label className="admin__field">
+                      <span>New password</span>
+                      <input
+                        type="password"
+                        value={accountForm.newPassword}
+                        onChange={event => setAccountForm(current => ({ ...current, newPassword: event.target.value }))}
+                      />
+                    </label>
+                    <label className="admin__field">
+                      <span>Confirm new password</span>
+                      <input
+                        type="password"
+                        value={accountForm.confirmPassword}
+                        onChange={event => setAccountForm(current => ({ ...current, confirmPassword: event.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  <button className="btn btn--primary" type="submit" disabled={state.isBusy}>
+                    Save account changes
+                  </button>
+                </form>
+                <div className="admin__danger">
+                  <div className="admin__panel-body">
+                    <p>Security tools</p>
+                  </div>
                   <label className="admin__field">
-                    <span>Read time</span>
+                    <span>Password required to delete</span>
                     <input
-                      type="text"
-                      value={form.readTime}
-                      onChange={event => setForm(current => ({ ...current, readTime: event.target.value }))}
+                      type="password"
+                      value={deletePassword}
+                      onChange={event => setDeletePassword(event.target.value)}
                     />
                   </label>
-                  <label className="admin__field">
-                    <span>Publish date</span>
-                    <input
-                      type="date"
-                      value={form.publishedAt}
-                      onChange={event => setForm(current => ({ ...current, publishedAt: event.target.value }))}
-                    />
-                  </label>
+                  <div className="admin__actions">
+                    <button
+                      className="btn btn--ghost"
+                      type="button"
+                      onClick={handleResetPasskeys}
+                      disabled={state.isBusy}
+                    >
+                      Reset passkeys
+                    </button>
+                    <button
+                      className="btn btn--danger"
+                      type="button"
+                      onClick={handleDeleteAccount}
+                      disabled={state.isBusy}
+                    >
+                      Delete admin account
+                    </button>
+                  </div>
                 </div>
-                <label className="admin__checkbox">
-                  <input
-                    type="checkbox"
-                    checked={form.pinned}
-                    onChange={event => setForm(current => ({ ...current, pinned: event.target.checked }))}
-                  />
-                  <span>Pin this post</span>
-                </label>
-                <button className="btn btn--primary" type="submit" disabled={state.isBusy}>
-                  Publish post
-                </button>
-              </form>
+              </div>
             )}
 
             <button className="btn btn--ghost" type="button" onClick={handleLogout}>

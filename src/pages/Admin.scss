@@ -95,6 +95,68 @@
   color: var(--text-secondary);
 }
 
+.admin__dashboard {
+  display: grid;
+  gap: 1rem;
+  border: 1px dashed color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 18px;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--background) 80%, transparent);
+}
+
+.admin__dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.admin__blog {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin__auth {
+  margin-top: 0.5rem;
+}
+
+.admin__account {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.admin__danger {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid color-mix(in srgb, #ff9b9b 40%, var(--border));
+  border-radius: 18px;
+  padding: 1rem;
+  background: color-mix(in srgb, #ff9b9b 8%, transparent);
+}
+
+.btn--danger {
+  background: #ff6b6b;
+  color: #111;
+}
+
+.btn--danger:hover,
+.btn--danger:focus-visible {
+  background: #ff4f4f;
+}
+
 .admin__form {
   display: grid;
   gap: 1rem;
