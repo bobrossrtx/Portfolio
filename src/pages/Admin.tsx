@@ -119,7 +119,6 @@ const Admin = () => {
     identity.on('init', updateUser);
     identity.on('login', updateUser);
     identity.on('logout', () => updateUser(null));
-    identity.on('close', updateUser);
 
     updateUser(identity.currentUser());
   }, []);
