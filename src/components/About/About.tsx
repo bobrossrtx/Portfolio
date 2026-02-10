@@ -11,9 +11,17 @@ const About = () => {
       <div className="section__head">
         <h2 id="about-title">About</h2>
         <p>
-          Systems-minded builder with a love for low-level tooling, clean interfaces,
-          and practical automation. Focused on shipping reliable software while
-          exploring language design, VM interpreters, and performance work.
+          I’m a 19-year-old dev who’s into systems work, language design, and
+          building products that feel sharp and intentional. I started in IT and
+          learned by shipping projects the hard way. These days I write TypeScript
+          and React for the web, but I’m just as happy in C/C++ working on VMs,
+          kernels, and anything that teaches me how computers really tick.
+        </p>
+        <p>
+          A big turning point was meeting Twitch devs who pushed me beyond “make it
+          work” and into systems thinking. Right now I’m focused on Demi (my custom
+          language), TinyKernel, and an AI strategy game called Census Conquest. I
+          also DJ on the side, and music is how I reset my brain between builds.
         </p>
       </div>
 

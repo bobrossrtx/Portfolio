@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; url=/Portfolio/" />
+    <title>Redirecting</title>
+    <script type="text/javascript">
+      (function () {
+        var segmentCount = 1;
+        var location = window.location;
+        var pathSegments = location.pathname.split('/');
+        var base = pathSegments.slice(0, 1 + segmentCount).join('/');
+        var rest = pathSegments.slice(1 + segmentCount).join('/');
+        var newPath = base + '/?/' + rest;
+
+        if (location.search) {
+          newPath += '&' + location.search.slice(1).replace(/&/g, '~and~');
+        }
+
+        if (location.hash) {
+          newPath += location.hash;
+        }
+
+        location.replace(location.protocol + '//' + location.host + newPath);
+      })();
+    </script>
+  </head>
+  <body>404</body>
+</html>

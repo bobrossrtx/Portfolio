@@ -1,34 +1,38 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FaCaretDown, FaChevronLeft, FaChevronRight, FaVolumeHigh, FaVolumeXmark, FaPlay, FaPause } from 'react-icons/fa6';
-import droughtnought from '../../data/tracks/2024 - SWORDSMEN - DROUGHTNOUGHT .wav';
-import somethingsComing from '../../data/tracks/THE BUTCHER - SOMETHINGS COMING V1.1.1.wav';
+import { useMusicPlayer } from './MusicProvider';
 import './Music.scss';
 
 const BASS_MAX = 250;
 const MID_MAX = 2000;
 
-const tracks = [
-  {
-    title: 'SWORDSMEN - DROUGHTNOUGHT (2024)',
-    url: droughtnought,
-  },
-  {
-    title: 'THE BUTCHER - SOMETHINGS COMING V1.1.1',
-    url: somethingsComing,
-  },
-];
-
 const Music = () => {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const {
+    tracks,
+    audioRef,
+    audioContextRef,
+    analyserRef,
+    dataArrayRef,
+    isPlaying,
+    duration,
+    currentTime,
+    currentTrackIndex,
+    volume,
+    isMuted,
+    ensureAudioContext,
+    togglePlayback,
+    handleSeek,
+    handleVolumeChange,
+    toggleMute,
+    goToNext,
+    goToPrevious,
+    selectTrack,
+  } = useMusicPlayer();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const visualContainerRef = useRef<HTMLDivElement>(null);
   const waveformRef = useRef<HTMLDivElement>(null);
   const trackMenuRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
 
   // Store previous frame values for smoothing (Linear Interpolation)
   const prevValuesRef = useRef<{
@@ -41,12 +45,6 @@ const Music = () => {
     bass: new Array(72).fill(0),
   });
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
   const [isTrackMenuOpen, setIsTrackMenuOpen] = useState(false);
 
   const scrubProgress = useMemo(() => {
@@ -58,12 +56,6 @@ const Music = () => {
     const value = isMuted ? 0 : volume;
     return Math.min(100, Math.max(0, value * 100));
   }, [isMuted, volume]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
-  }, [volume, isMuted]);
 
   useEffect(() => {
     if (!isTrackMenuOpen) return;
@@ -92,21 +84,7 @@ const Music = () => {
   }, [isTrackMenuOpen]);
 
   const setupAudio = () => {
-    if (!audioRef.current || audioContextRef.current) return;
-
-    const context = new AudioContext();
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 2048;
-
-    const source = context.createMediaElementSource(audioRef.current);
-    source.connect(analyser);
-    analyser.connect(context.destination);
-
-    const bufferLength = analyser.frequencyBinCount;
-    dataArrayRef.current = new Uint8Array(bufferLength);
-    audioContextRef.current = context;
-    analyserRef.current = analyser;
-    sourceRef.current = source;
+    ensureAudioContext();
   };
 
   const getPrimaryRgb = () => {
@@ -215,7 +193,7 @@ const Music = () => {
         bassBins.push(dataArray[bin] / 255);
       } else {
         // Optimization: Once we pass BASS_MAX, we don't need to loop further for bass
-        break; 
+        break;
       }
     }
 
@@ -224,7 +202,7 @@ const Music = () => {
     const startBin = Math.max(1, Math.floor((BASS_MAX / nyquist) * bufferLength));
     const endFreq = Math.min(nyquist, TREBLE_MAX_FREQ);
     const endBin = Math.floor((endFreq / nyquist) * bufferLength);
-    
+
     const minLog = Math.log(startBin);
     const maxLog = Math.log(endBin);
     const logRange = maxLog - minLog;
@@ -236,21 +214,21 @@ const Music = () => {
       // Determine frequency range for this bar using log scale
       const ratioStart = i / barCount;
       const ratioEnd = (i + 1) / barCount;
-      
+
       const logBinStart = minLog + ratioStart * logRange;
       const logBinEnd = minLog + ratioEnd * logRange;
-      
+
       let binStart = Math.exp(logBinStart);
       let binEnd = Math.exp(logBinEnd);
-      
+
       // Ensure we sample at least one bin
       if (binEnd - binStart < 1) {
         binEnd = binStart + 1;
       }
-      
+
       let sum = 0;
       let count = 0;
-      
+
       const startI = Math.floor(binStart);
       const endI = Math.ceil(binEnd);
 
@@ -262,7 +240,7 @@ const Music = () => {
       }
 
       const amplitude = count > 0 ? sum / count : 0;
-      
+
       // Determine if this bar represents Mid or Treble frequency
       const centerBin = (binStart + binEnd) / 2;
       const centerFreq = (centerBin / bufferLength) * nyquist;
@@ -288,8 +266,8 @@ const Music = () => {
         const upper = Math.min(bassBins.length - 1, lower + 1);
         const blend = position - lower;
         const targetHeight = bassBins[lower] * (1 - blend) + bassBins[upper] * blend;
-        
-        bassHeights[i] = lerp(prevValuesRef.current.bass[i] || 0, targetHeight, SMOOTHING * (isPaused ? 2 : 2)); 
+
+        bassHeights[i] = lerp(prevValuesRef.current.bass[i] || 0, targetHeight, SMOOTHING * (isPaused ? 2 : 2));
         prevValuesRef.current.bass[i] = bassHeights[i];
         totalBass += bassHeights[i];
       }
@@ -298,7 +276,7 @@ const Music = () => {
       // If paused, drop opacity as amplitude drops to avoid a "hard line".
       // Let it fade all the way out; the idle line is separate.
       const fadeFactor = isPaused ? Math.min(1, avgBass * 10) : 1;
-      
+
       const lineColor = `rgba(${ORANGE.r}, ${ORANGE.g}, ${ORANGE.b}, ${0.9 * fadeFactor})`;
       const fillColor = `rgba(${ORANGE.r}, ${ORANGE.g}, ${ORANGE.b}, ${0.25 * fadeFactor})`;
 
@@ -332,11 +310,11 @@ const Music = () => {
     // Draw Bars (Mids + Highs)
     for (let i = 0; i < barCount; i += 1) {
       const x = i * barWidth;
-      
+
       // Interpolate
       const mid = lerp(prevValuesRef.current.mid[i] || 0, currentMids[i], SMOOTHING);
       const treble = lerp(prevValuesRef.current.treble[i] || 0, currentTreble[i], SMOOTHING);
-      
+
       prevValuesRef.current.mid[i] = mid;
       prevValuesRef.current.treble[i] = treble;
 
@@ -348,20 +326,20 @@ const Music = () => {
       const midHeight = mid * (cssHeight * 0.32);
       // Ensure minimal height for visibility if valid
       if (midHeight > 0.5) {
-          ctx.fillRect(x + barWidth * 0.1, centerY - midHeight, barWidth * 0.8, midHeight);
+        ctx.fillRect(x + barWidth * 0.1, centerY - midHeight, barWidth * 0.8, midHeight);
       }
 
       const intensityTreble = Math.min(1, treble * 2);
       // Use Violet -> Magenta for Highs to distinguish them
       const tRgb = getGradientColor(VIOLET, MAGENTA, intensityTreble);
-      ctx.fillStyle = `rgba(${tRgb.r}, ${tRgb.g}, ${tRgb.b}, 0.8)`; 
-      
+      ctx.fillStyle = `rgba(${tRgb.r}, ${tRgb.g}, ${tRgb.b}, 0.8)`;
+
       const trebleHeight = treble * (cssHeight * 0.22);
-      
+
       // Split the mid and high: Lift highs slightly off the mid/center
       // Only apply gap if we are actually stacking on top of a mid bar (which shouldn't happen often in this split logic)
       const gap = midHeight > 1 ? 3 : 0;
-      
+
       if (trebleHeight > 0.5) {
         // midHeight will be ~0 for pure treble bars, so they will sit on the center line
         ctx.fillRect(x + barWidth * 0.1, centerY - midHeight - gap - trebleHeight, barWidth * 0.8, trebleHeight);
@@ -373,13 +351,13 @@ const Music = () => {
       let midSum = 0;
       let trebleSum = 0;
       let bassSum = 0;
-      
-      for(let k = 0; k < barCount; k++) {
-          midSum += mid[k];
-          trebleSum += treble[k];
-          bassSum += bass[k];
+
+      for (let k = 0; k < barCount; k++) {
+        midSum += mid[k];
+        trebleSum += treble[k];
+        bassSum += bass[k];
       }
-      
+
       const midAvg = midSum / barCount;
       const trebleAvg = trebleSum / barCount;
       const bassAvg = bassSum / barCount;
@@ -391,13 +369,13 @@ const Music = () => {
 
       // Top Left: Teal (Quiet) -> Purple (Loud)
       const tlColor = getGradientColor(CYAN, VIOLET, midIntensity);
-      
+
       // Top Right: Magenta (Quiet) -> Hot Pink (Loud)
       const trColor = getGradientColor(MAGENTA, HOT_PINK, trebleIntensity);
 
       // Bottom: Orange size based on bass
       const bottomSpread = 10 + (bassIntensity * 30); // Base 10px, adds up to 30px
-      const bottomOpacity = 0.15 + (bassIntensity * 0.4); 
+      const bottomOpacity = 0.15 + (bassIntensity * 0.4);
 
       // Apply Box Shadow directly
       waveformRef.current.style.boxShadow = `
@@ -453,9 +431,9 @@ const Music = () => {
 
     // 3. Reset Drop Shadows to "Idle" state
     if (waveformRef.current) {
-       // Match the "idle" values implied by the live shadow formula at zero intensity
-       // (avoids a visible brightness jump when the decay loop stops).
-       waveformRef.current.style.boxShadow = `
+      // Match the "idle" values implied by the live shadow formula at zero intensity
+      // (avoids a visible brightness jump when the decay loop stops).
+      waveformRef.current.style.boxShadow = `
         -10px -10px 30px rgba(${CYAN.r}, ${CYAN.g}, ${CYAN.b}, 0.1),
         10px -10px 30px rgba(${MAGENTA.r}, ${MAGENTA.g}, ${MAGENTA.b}, 0.1),
         0px 15px 10px rgba(${ORANGE.r}, ${ORANGE.g}, ${ORANGE.b}, 0.15)
@@ -473,6 +451,11 @@ const Music = () => {
     }
   };
 
+  const startDrawing = () => {
+    if (animationRef.current) return;
+    draw();
+  };
+
   const stopDrawing = () => {
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -481,53 +464,17 @@ const Music = () => {
     clearVisuals();
   };
 
-  const togglePlayback = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    setupAudio();
-    if (audioContextRef.current?.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
-
-    if (audio.paused) {
-      setIsPlaying(true);
-      audio.play().catch(() => setIsPlaying(false));
-      draw();
-    } else {
-      setIsPlaying(false);
-      audio.pause();
-      // Decay naturally
-    }
-  };
-
-  const handleSeek = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (!audioRef.current) return;
-    const time = Number(event.target.value);
-    audioRef.current.currentTime = time;
-    setCurrentTime(time);
-
-    setupAudio();
-    if (audioContextRef.current?.state === 'suspended') {
-      await audioContextRef.current.resume();
-    }
-
+  const handleTogglePlayback = () => {
     if (!isPlaying) {
-      // Do nothing visually when seeking while paused, to avoid "decaying bars" effect
-      // The user requested: "clear when the track is paused"
+      setupAudio();
+      startDrawing();
     }
+    togglePlayback();
   };
 
-  const handleVolumeChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(event.target.value);
-    setVolume(newVolume);
-    if (newVolume > 0 && isMuted) {
-      setIsMuted(false);
-    }
-  };
-
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
+  const handleSelectTrack = (index: number) => {
+    selectTrack(index);
+    setIsTrackMenuOpen(false);
   };
 
   const formatTime = (time: number) => {
@@ -538,61 +485,21 @@ const Music = () => {
   };
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return undefined;
-
-    const handleMetadata = () => setDuration(audio.duration || 0);
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
-    const handleEnded = () => {
-      setIsPlaying(false);
-      // Decay naturally
-    };
-
-    audio.addEventListener('loadedmetadata', handleMetadata);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', handleMetadata);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
     stopDrawing();
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setDuration(0);
-    audio.src = tracks[currentTrackIndex].url;
-    audio.load();
     drawFrame();
   }, [currentTrackIndex]);
 
   useEffect(() => {
+    if (!isPlaying) return;
+    setupAudio();
+    startDrawing();
+  }, [isPlaying]);
+
+  useEffect(() => {
     return () => {
       stopDrawing();
-      analyserRef.current?.disconnect();
-      sourceRef.current?.disconnect();
-      audioContextRef.current?.close();
     };
   }, []);
-
-  const goToNext = () => {
-    setCurrentTrackIndex(prev => (prev + 1) % tracks.length);
-  };
-
-  const goToPrevious = () => {
-    setCurrentTrackIndex(prev => (prev - 1 + tracks.length) % tracks.length);
-  };
-
-  const selectTrack = (index: number) => {
-    setCurrentTrackIndex(index);
-    setIsTrackMenuOpen(false);
-  };
 
   return (
     <section id="music" className="section music" aria-labelledby="music-title">
@@ -643,7 +550,7 @@ const Music = () => {
               <button
                 type="button"
                 className="music__play"
-                onClick={togglePlayback}
+                onClick={handleTogglePlayback}
                 aria-pressed={isPlaying}
                 aria-label={isPlaying ? 'Pause' : 'Play'}
               >
@@ -709,7 +616,7 @@ const Music = () => {
                       type="button"
                       role="menuitem"
                       className="music__trackItem"
-                      onClick={() => selectTrack(index)}
+                      onClick={() => handleSelectTrack(index)}
                       aria-current={index === currentTrackIndex}
                     >
                       {track.title}
@@ -718,7 +625,6 @@ const Music = () => {
                 </div>
               )}
             </div>
-            <audio ref={audioRef} preload="metadata" />
           </div>
         </div>
       </div>

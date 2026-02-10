@@ -2,9 +2,28 @@
   min-height: 100vh;
 }
 
-main {
+.main {
   max-width: 1200px;
   margin: 0 auto;
+  transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease;
+  border-radius: 28px;
+}
+
+.main--lifted {
+  background: color-mix(in srgb, var(--background) 88%, transparent);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+  transform: translateY(-4px);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .section {

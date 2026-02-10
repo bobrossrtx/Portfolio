@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# Owen Boreham | Developer Portfolio
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Systems programmer, full-stack developer, and language designer with a soft spot for low-level work, creative tooling, and clean UI. I build things that feel intentional, from custom languages and kernels to immersive web experiences.
 
-Currently, two official plugins are available:
+Live site: https://bobrossrtx.github.io/Portfolio/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## About Me
+- Focus: systems programming, language design, full-stack web development
+- Interests: OS development, VM interpreters, security tooling, and developer experience
+- Background: engineering mindset shaped by machining and welding before shifting fully into IT
+- Community: active in Twitch development circles and technical discussions
 
-## React Compiler
+## Highlights
+- Custom programming language projects with configurable syntax and tooling
+- Strong TypeScript and React experience across multiple shipped projects
+- Practical Rust usage for backend and security-focused work
+- Music and DJ culture influence on the feel and motion of the site
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Projects
+- Demi Programming Language: a highly customizable language aimed at being the "Vim of programming languages" (C/C++)
+  - Repo: https://github.com/bobrossrtx/demi
+  - Roadmap: VM interpreter, assembly expansion, native code generation
+- TinyKernel: hobby VM kernel exploring OS internals and low-level systems
+  - Repo: https://github.com/bobrossrtx/tinykernel
+- Census Conquest: AI-driven alternate world history strategy game
+  - Repo: https://github.com/bobrossrtx/Cencus-Conquest
 
-## Expanding the ESLint configuration
+## Skills Snapshot
+Languages
+- C/C++: low-level systems and native applications, 4 years
+- Python: automation and scripting, 6 to 7 years
+- TypeScript/JavaScript: full-stack web development, 6 years
+- Rust: backend and security tooling, 2 years
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Tools and Platforms
+- Git and GitHub: very strong
+- Linux: solid command-line workflow across Ubuntu, Debian, Kali, and others
+- Docker: fair, used in deployment workflows
+- VS Code: daily driver, highly proficient
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Music
+Code and Bass is my creative outlet for Drum and Bass, Techno, Hardcore, and classic EDM. The portfolio includes subtle music-inspired motion and easter eggs tied to this theme.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Education
+- Level 2 Diploma in IT and Digital Skills, EKC Ashford College (2024)
+- Level 2 Diploma in Machining and Welding (Engineering), East Sussex College (2025)
+- T-Level Certification in IT and Programming, East Sussex College (in progress, 2026-2027)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Tech Stack
+- React + TypeScript + Vite
+- SCSS with CSS variables for theming
+- Framer Motion for animation
+- React Router for navigation
+- Octokit for GitHub data
+
+## Run Locally
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## GitHub Pages
+This repo is configured for GitHub Pages:
+- Vite base path is set to `/Portfolio/`
+- Router uses `import.meta.env.BASE_URL` for correct routing under the repo path
+- A SPA redirect is included so deep links like `/blog` work on refresh
+- GitHub Actions deploys `dist` to Pages on every push to `main`
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+To enable Pages in GitHub:
+1. In the repository settings, open Pages.
+2. Set the source to GitHub Actions.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Contact
+- GitHub: https://github.com/bobrossrtx
+- X: https://x.com/bobrossrtx
+- Discord: server link coming soon
