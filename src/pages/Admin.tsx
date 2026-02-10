@@ -66,6 +66,19 @@ const Admin = () => {
     setState(current => ({ ...current, isBusy }));
   };
 
+  const resolveAccessToken = async (identityUser?: { token?: { access_token?: string }; jwt?: () => Promise<string> } | null) => {
+    const accessToken = identityUser?.token?.access_token ?? null;
+    if (accessToken) return accessToken;
+    if (identityUser?.jwt) {
+      try {
+        return await identityUser.jwt();
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
     const identity = window.netlifyIdentity;
     if (!identity) {
@@ -84,14 +97,7 @@ const Admin = () => {
 
     const hydrateUser = async (user?: { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string> } | null) => {
       const currentUser = user ?? identity.currentUser();
-      let accessToken = currentUser?.token?.access_token ?? null;
-      if (!accessToken && currentUser?.jwt) {
-        try {
-          accessToken = await currentUser.jwt();
-        } catch {
-          accessToken = null;
-        }
-      }
+      const accessToken = await resolveAccessToken(currentUser ?? null);
 
       setState({
         ready: true,
@@ -128,7 +134,15 @@ const Admin = () => {
         }));
         return;
       }
-      if (!state.accessToken || !state.userEmail) return;
+      if (!state.userEmail) return;
+      if (!state.accessToken) {
+        const identityUser = window.netlifyIdentity?.currentUser();
+        if (!identityUser) return;
+        const accessToken = await resolveAccessToken(identityUser);
+        if (!accessToken) return;
+        setState(current => ({ ...current, accessToken }));
+        return;
+      }
       try {
         const response = await fetch('/api/admin-status', {
           headers: {
