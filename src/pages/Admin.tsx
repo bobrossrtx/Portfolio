@@ -86,6 +86,9 @@ const Admin = () => {
   const [deletePassword, setDeletePassword] = useState('');
   const [activePanel, setActivePanel] = useState<AdminPanel>('dashboard');
   const [authPanel, setAuthPanel] = useState<'login' | 'register'>('login');
+  const [devBypassEnabled, setDevBypassEnabled] = useState(
+    import.meta.env.DEV ? localStorage.getItem('adminDevBypass') === 'true' : false,
+  );
 
   const isVerified = Boolean(state.sessionId);
   const canManage = state.allowed && isVerified;
@@ -95,6 +98,13 @@ const Admin = () => {
       setActivePanel('dashboard');
     }
   }, [canManage]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) {
+      localStorage.removeItem('adminDevBypass');
+      setDevBypassEnabled(false);
+    }
+  }, []);
 
   const tagList = useMemo(() => {
     return form.tags
@@ -135,11 +145,46 @@ const Admin = () => {
     } else {
       sessionStorage.removeItem('adminUserName');
     }
-    if (token) {
+    if (token && token !== 'dev') {
       sessionStorage.setItem('adminAccessToken', token);
     } else {
       sessionStorage.removeItem('adminAccessToken');
     }
+  };
+
+  const isDevBypassActive = () => {
+    return Boolean(import.meta.env.DEV && localStorage.getItem('adminDevBypass') === 'true');
+  };
+
+  const enableDevSession = (message?: string) => {
+    if (!import.meta.env.DEV) return;
+    sessionStorage.setItem('adminSessionId', 'dev');
+    persistIdentity('dev@local', 'Dev Admin', null);
+    setState(current => ({
+      ...current,
+      ready: true,
+      userEmail: current.userEmail ?? 'dev@local',
+      userName: current.userName ?? 'Dev Admin',
+      accessToken: 'dev',
+      allowed: true,
+      hasPasskey: true,
+      sessionId: 'dev',
+      isCheckingAccess: false,
+    }));
+    if (message) setStatus(message, null);
+  };
+
+  const setDevBypassPreference = (enabled: boolean, message?: string) => {
+    if (!import.meta.env.DEV) return;
+    if (enabled) {
+      localStorage.setItem('adminDevBypass', 'true');
+      setDevBypassEnabled(true);
+      enableDevSession(message);
+      return;
+    }
+    localStorage.removeItem('adminDevBypass');
+    setDevBypassEnabled(false);
+    if (message) setStatus(message, null);
   };
 
   const getDisplayName = (identityUser?: { user_metadata?: { full_name?: string; name?: string; username?: string } } | null) => {
@@ -147,10 +192,9 @@ const Admin = () => {
     return metadata?.full_name ?? metadata?.name ?? metadata?.username ?? '';
   };
 
-  const updateIdentityUser = async (identityUser: {
-    update?: (data: Record<string, unknown>, callback?: (error?: { message?: string }) => void) => Promise<unknown> | void;
-  } | null, data: Record<string, unknown>) => {
-    if (!identityUser?.update) throw new Error('Identity update unavailable.');
+  const updateIdentityUser = async (identityUser: unknown, data: Record<string, unknown>) => {
+    const updater = (identityUser as { update?: (data: Record<string, unknown>, callback?: (error?: { message?: string }) => void) => Promise<unknown> | void })?.update;
+    if (!updater) throw new Error('Identity update unavailable.');
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = (error?: { message?: string }) => {
@@ -162,7 +206,7 @@ const Admin = () => {
           resolve();
         }
       };
-      const maybePromise = identityUser.update(data, finish);
+      const maybePromise = updater(data, finish);
       if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
         (maybePromise as Promise<unknown>)
           .then(() => finish())
@@ -172,7 +216,7 @@ const Admin = () => {
   };
 
   const loginIdentityUser = async (email: string, password: string) => {
-    const identity = window.netlifyIdentity;
+    const identity = window.netlifyIdentity as unknown as { login?: (email: string, password: string, remember: boolean, callback?: (error?: { message?: string }, result?: unknown) => void) => Promise<unknown> | void } | undefined;
     if (!identity?.login) throw new Error('Identity login unavailable.');
     const user = await new Promise<unknown>((resolve, reject) => {
       let settled = false;
@@ -185,7 +229,7 @@ const Admin = () => {
           resolve(result);
         }
       };
-      const maybePromise = identity.login(email, password, true, finish);
+      const maybePromise = identity.login?.(email, password, true, finish);
       if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
         (maybePromise as Promise<unknown>)
           .then(result => finish(undefined, result))
@@ -195,10 +239,9 @@ const Admin = () => {
     return user as { delete?: (callback?: (error?: { message?: string }) => void) => Promise<unknown> | void } | null;
   };
 
-  const deleteIdentityUser = async (identityUser: {
-    delete?: (callback?: (error?: { message?: string }) => void) => Promise<unknown> | void;
-  } | null) => {
-    if (!identityUser?.delete) throw new Error('Identity delete unavailable.');
+  const deleteIdentityUser = async (identityUser: unknown) => {
+    const deleter = (identityUser as { delete?: (callback?: (error?: { message?: string }) => void) => Promise<unknown> | void })?.delete;
+    if (!deleter) throw new Error('Identity delete unavailable.');
     await new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = (error?: { message?: string }) => {
@@ -210,7 +253,7 @@ const Admin = () => {
           resolve();
         }
       };
-      const maybePromise = identityUser.delete(finish);
+      const maybePromise = deleter(finish);
       if (maybePromise && typeof (maybePromise as Promise<unknown>).then === 'function') {
         (maybePromise as Promise<unknown>)
           .then(() => finish())
@@ -294,13 +337,17 @@ const Admin = () => {
 
     const initIdentity = () => {
       if (cancelled) return;
-      const identity = window.netlifyIdentity;
+      const identity = window.netlifyIdentity as unknown as {
+        currentUser?: () => { email?: string; token?: { access_token?: string }; jwt?: () => Promise<string>; user_metadata?: { full_name?: string; name?: string; username?: string } } | null;
+        on?: (event: string, handler: (user?: { email?: string } | null) => void) => void;
+        init?: () => void;
+      } | undefined;
       if (!identity) {
         attempts += 1;
         if (attempts <= 12) {
           window.setTimeout(initIdentity, 250);
         } else {
-          if (sessionStorage.getItem('adminAccessToken')) return;
+          if (sessionStorage.getItem('adminAccessToken') || isDevBypassActive()) return;
           setState(current => ({
             ...current,
             ready: true,
@@ -324,7 +371,7 @@ const Admin = () => {
           return;
         }
         if (remaining <= 0) {
-          if (sessionStorage.getItem('adminAccessToken')) return;
+          if (sessionStorage.getItem('adminAccessToken') || isDevBypassActive()) return;
           setState(current => ({
             ...current,
             ready: true,
@@ -348,15 +395,18 @@ const Admin = () => {
         retryHydrate(8);
       };
 
-      identity.on('init', updateUser);
-      identity.on('login', updateUser);
-      identity.on('logout', () => updateUser(null));
+      identity.on?.('init', updateUser);
+      identity.on?.('login', updateUser);
+      identity.on?.('logout', () => updateUser(null));
 
-      identity.init();
+      identity.init?.();
       retryHydrate(8);
     };
 
     const boot = async () => {
+      if (isDevBypassActive()) {
+        enableDevSession();
+      }
       const storedToken = sessionStorage.getItem('adminAccessToken');
       if (storedToken) {
         const hydrated = await hydrateFromToken(storedToken);
@@ -422,22 +472,7 @@ const Admin = () => {
 
   const handleLogin = () => {
     if (import.meta.env.DEV) {
-      sessionStorage.setItem('adminSessionId', 'dev');
-      sessionStorage.setItem('adminAccessToken', 'dev');
-      sessionStorage.setItem('adminUserEmail', 'dev@local');
-      sessionStorage.setItem('adminUserName', 'Dev Admin');
-      setState(current => ({
-        ...current,
-        ready: true,
-        userEmail: current.userEmail ?? 'dev@local',
-        userName: current.userName ?? 'Dev Admin',
-        accessToken: current.accessToken ?? 'dev',
-        allowed: true,
-        hasPasskey: true,
-        sessionId: 'dev',
-        isCheckingAccess: false,
-      }));
-      setStatus('Dev mode login enabled.', null);
+      enableDevSession('Dev mode login enabled.');
       return;
     }
     window.netlifyIdentity?.open('login');
@@ -461,7 +496,9 @@ const Admin = () => {
 
   const handleRegisterAccount = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const identity = window.netlifyIdentity;
+    const identity = window.netlifyIdentity as unknown as {
+      signup?: (email: string, password: string, data?: Record<string, unknown>, callback?: (error?: { message?: string }) => void) => Promise<unknown> | void;
+    } | undefined;
     if (!identity?.signup) {
       setStatus(null, 'Identity signup unavailable.');
       return;
@@ -496,7 +533,7 @@ const Admin = () => {
             resolve();
           }
         };
-        const maybePromise = identity.signup(
+        const maybePromise = identity.signup?.(
           email,
           registerForm.password,
           displayName ? { full_name: displayName } : undefined,
@@ -521,6 +558,10 @@ const Admin = () => {
     window.netlifyIdentity?.logout();
     sessionStorage.removeItem('adminSessionId');
     persistIdentity(null, null, null);
+    if (import.meta.env.DEV) {
+      localStorage.removeItem('adminDevBypass');
+      setDevBypassEnabled(false);
+    }
     setState(current => ({
       ...current,
       userEmail: null,
@@ -623,9 +664,7 @@ const Admin = () => {
   };
 
   const handleDevBypass = () => {
-    sessionStorage.setItem('adminSessionId', 'dev');
-    setState(current => ({ ...current, sessionId: 'dev' }));
-    setStatus('Dev bypass enabled.', null);
+    enableDevSession('Dev bypass enabled.');
   };
 
   const openBlogPoster = () => setActivePanel('blog');
@@ -981,6 +1020,19 @@ const Admin = () => {
                     Admin account settings
                   </button>
                 </div>
+                {import.meta.env.DEV && (
+                  <label className="admin__checkbox">
+                    <input
+                      type="checkbox"
+                      checked={devBypassEnabled}
+                      onChange={event => setDevBypassPreference(
+                        event.target.checked,
+                        event.target.checked ? 'Dev bypass enabled.' : 'Dev bypass disabled.',
+                      )}
+                    />
+                    <span>Persist dev bypass on refresh</span>
+                  </label>
+                )}
               </div>
             )}
 
