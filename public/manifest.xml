@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest xmlns="http://www.w3.org/2001/XMLSchema-instance">
+  <name>Owen Boreham</name>
+  <short_name>Owen Boreham</short_name>
+  <start_url>/</start_url>
+  <display>standalone</display>
+  <background_color>#ffffff</background_color>
+  <theme_color>#22223b</theme_color>
+  <description>Personal portfolio website</description>
+  <icons>
+    <icon src="/favicon.ico" sizes="64x64 32x32 24x24 16x16" type="image/x-icon" />
+  </icons>
+</manifest>
