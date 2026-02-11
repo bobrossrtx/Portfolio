@@ -1,4 +1,5 @@
 # Owen Boreham | Developer Portfolio
+[![Netlify Status](https://api.netlify.com/api/v1/badges/f63741ae-6235-4aa5-ab8b-7b4dd2ae4d82/deploy-status)](https://app.netlify.com/projects/owenboreham/deploys)
 
 Systems programmer, full-stack developer, and language designer with a soft spot for low-level work, creative tooling, and clean UI. I build things that feel intentional, from custom languages and kernels to immersive web experiences.
 
