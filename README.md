@@ -3,7 +3,7 @@
 
 Systems programmer, full-stack developer, and language designer with a soft spot for low-level work, creative tooling, and clean UI. I build things that feel intentional, from custom languages and kernels to immersive web experiences.
 
-Live site: https://bobrossrtx.github.io/Portfolio/
+Live site: https://owenboreham.netlify.app/
 
 ## About Me
 - Focus: systems programming, language design, full-stack web development
@@ -74,4 +74,4 @@ To enable Pages in GitHub:
 ## Contact
 - GitHub: https://github.com/bobrossrtx
 - X: https://x.com/bobrossrtx
-- Discord: server link coming soon
+- Discord: [Just Dev It](https://discord.gg/KDm5dtyDxs)
