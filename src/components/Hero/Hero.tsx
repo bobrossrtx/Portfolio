@@ -45,7 +45,7 @@ const Hero = () => {
 
       <div className="hero__media" aria-hidden="true">
         <div className="hero__avatar">
-          <span>OB</span>
+          <img src="/logo512x512.png" alt="Logo" className="site-logo__mark" style={{ verticalAlign: 'middle', objectFit: 'contain', width: "200px", height: "200px" }} />
         </div>
         <div className="hero__glow"></div>
       </div>

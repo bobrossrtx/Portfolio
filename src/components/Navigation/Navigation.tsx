@@ -68,7 +68,7 @@ const Navigation = ({ theme, onToggleTheme }: NavigationProps) => {
     <header className="site-header">
       <div className="site-header__inner">
         <Link className="site-logo" to={{ pathname: '/', hash: '#hero' }} aria-label="Go to top">
-          <span className="site-logo__mark">OB</span>
+          <img src="/logo512x512.png" alt="Logo" className="site-logo__mark" width="40" height="32" style={{ verticalAlign: 'middle', objectFit: 'contain' }} />
           <span className="site-logo__text">Owen Boreham</span>
         </Link>
 
