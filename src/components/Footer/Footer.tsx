@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FaDiscord, FaGithub } from 'react-icons/fa6';
 import './Footer.scss';
 
 const Footer = () => {
@@ -33,6 +34,28 @@ const Footer = () => {
             <Link className="site-footer__button site-footer__button--ghost" to="/admin">
               Admin login
             </Link>
+          </div>
+          <div className="site-footer__cta-socials">
+            <a
+              className="site-footer__button site-footer__button--discord"
+              href="https://discord.gg/KDm5dtyDxs"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Join Discord community"
+            >
+              <FaDiscord style={{ marginRight: '0.5em', verticalAlign: 'middle' }} aria-hidden="true" />
+              Join Discord
+            </a>
+            <a
+              className="site-footer__button site-footer__button--github"
+              href="https://github.com/bobrossrtx"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub repository"
+              style={{ padding: '0.5em', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <FaGithub size={22} aria-hidden="true" />
+            </a>
           </div>
         </div>
       </div>

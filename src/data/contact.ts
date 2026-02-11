@@ -39,7 +39,8 @@ export const contactConfig: {
     {
       id: 'discord',
       label: 'Discord',
-      note: 'Discord server on its way',
+      href: 'https://discord.gg/KDm5dtyDxs',
+      note: 'Join the Discord community',
     },
   ],
 };
